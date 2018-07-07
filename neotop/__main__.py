@@ -16,11 +16,22 @@
 # limitations under the License.
 
 
-from neotop import application
+from sys import stderr
+
+from neo4j.exceptions import ServiceUnavailable
+
+from neotop.application import Neotop
 
 
 def main():
-    raise SystemExit(application.run())
+    try:
+        neotop = Neotop()
+        raise SystemExit(neotop.run())
+    except ServiceUnavailable as error:
+        stderr.write("ServiceUnavailable: ")
+        stderr.write(error.args[0])
+        stderr.write("\n")
+        raise SystemExit(1)
 
 
 if __name__ == '__main__':
