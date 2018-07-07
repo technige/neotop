@@ -1,0 +1,2 @@
+neo4j-driver>=1.6
+prompt_toolkit>=2.0
