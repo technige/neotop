@@ -18,7 +18,7 @@
 
 from sys import stderr
 
-from neo4j.exceptions import ServiceUnavailable
+from neo4j.exceptions import CypherError, ServiceUnavailable
 
 from neotop.application import Neotop
 
@@ -27,10 +27,8 @@ def main():
     try:
         neotop = Neotop()
         raise SystemExit(neotop.run())
-    except ServiceUnavailable as error:
-        stderr.write("ServiceUnavailable: ")
-        stderr.write(error.args[0])
-        stderr.write("\n")
+    except (CypherError, ServiceUnavailable) as error:
+        stderr.write("%s: %s\n" % (error.__class__.__name__, error.args[0]))
         raise SystemExit(1)
 
 

@@ -20,6 +20,7 @@
 
 from __future__ import unicode_literals
 
+from os import getenv
 from threading import Thread
 from time import sleep
 
@@ -34,6 +35,10 @@ from prompt_toolkit.styles import Style
 
 from neotop.table import TableControl
 from neotop.units import number_string, time_str
+
+
+NEO4J_URI = getenv("NEO4J_URI", "bolt://localhost:7687")
+NEO4J_AUTH = tuple(getenv("NEO4J_AUTH", "neo4j:password").split(":"))
 
 
 top_control = FormattedTextControl(text="")
@@ -74,7 +79,7 @@ style = Style.from_dict({
 class Neotop(Application):
 
     def __init__(self):
-        self.driver = GraphDatabase.driver("bolt://localhost:7687", auth=("neo4j", "password"))
+        self.driver = GraphDatabase.driver(NEO4J_URI, auth=NEO4J_AUTH)
         super(Neotop, self).__init__(
             layout=Layout(
                 HSplit([
