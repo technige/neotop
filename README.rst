@@ -21,3 +21,8 @@ Execution
     $ export NEO4J_AUTH=neo4j:password
     $ neotop
 
+
+Screenshot
+==========
+
+.. image:: docs/screenshot.png
