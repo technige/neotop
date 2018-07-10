@@ -21,8 +21,6 @@
 from __future__ import unicode_literals
 
 from os import getenv
-from threading import Thread
-from time import sleep
 
 from prompt_toolkit.application import Application
 from prompt_toolkit.application.current import get_app
@@ -51,67 +49,61 @@ class Neotop(Application):
         self.address = "%s:%s" % (host or "localhost", port or 7687)
         self.user = user or "neo4j"
         self.auth = (self.user, password or "")
-        self.server = ServerControl(self.address, self.auth)
-        self.overview = OverviewControl(self.address, self.auth, visible=False,
-                                        on_select=self.server.database.set_address)
-        self.server_windows = [
-            Window(content=self.server),
-        ]
+        self.server_windows = [Window(content=ServerControl(self.address, self.auth))]
+        self.overview = OverviewControl(self.address, self.auth)
+        self.overview_visible = False
         self.overview_window = Window(content=self.overview, dont_extend_width=True)
-        self.layout_with_overview = Layout(
-            VSplit([
-                HSplit(self.server_windows),
-                Frame(self.overview_window),
-            ]),
-        )
-        self.layout_without_overview = Layout(
-            VSplit([
-                HSplit(self.server_windows),
-            ]),
-        )
         super(Neotop, self).__init__(
-            layout=self.layout_without_overview,
             key_bindings=self.bindings,
             style=self.style,
             # mouse_support=True,
             full_screen=True,
         )
-        self.payload_key = "query"
-        self.changed = False
-        self.running = True
-        self.loop_thread = Thread(target=self.loop)
-        self.loop_thread.start()
+        self.update_layout()
 
-    def loop(self):
-        while self.running:
-            self.update_info()
-            self.update_content()
-            self.changed = False
-            self.sleep()
+    def update_layout(self):
+        if self.overview_visible:
+            self.layout = Layout(
+                VSplit([
+                    HSplit(self.server_windows),
+                    Frame(self.overview_window),
+                ]),
+            )
+        else:
+            self.layout = Layout(
+                VSplit([
+                    HSplit(self.server_windows),
+                ]),
+            )
 
-    def update_info(self):
-        self.server.database.update()
+    def insert(self, event):
+        if len(self.server_windows) < 4:
+            selected_address = self.overview.selected_address
+            for window in self.server_windows:
+                if window.content.address == selected_address:
+                    return
+            self.server_windows.append(Window(content=ServerControl(selected_address, self.auth)))
+            self.update_layout()
 
-    def update_content(self):
-        self.server.update_content()
-        self.invalidate()
-
-    def sleep(self):
-        for _ in range(10):
-            if self.running and not self.changed:
-                sleep(0.1)
-            else:
-                return
+    def delete(self, event):
+        if len(self.server_windows) > 1:
+            selected_address = self.overview.selected_address
+            for window in list(self.server_windows):
+                if window.content.address == selected_address:
+                    self.server_windows.remove(window)
+            self.update_layout()
 
     @property
     def bindings(self):
         bindings = KeyBindings()
         bindings.add('c-c')(self.do_exit)
-        bindings.add('i')(self.action(self.server.set_payload_key, "indexes"))
-        bindings.add('m')(self.action(self.server.set_payload_key, "metaData"))
-        bindings.add('p')(self.action(self.server.set_payload_key, "parameters"))
-        bindings.add('q')(self.action(self.server.set_payload_key, "query"))
+        bindings.add('i')(self.action(self.server_windows[0].content.set_payload_key, "indexes"))
+        bindings.add('m')(self.action(self.server_windows[0].content.set_payload_key, "metaData"))
+        bindings.add('p')(self.action(self.server_windows[0].content.set_payload_key, "parameters"))
+        bindings.add('q')(self.action(self.server_windows[0].content.set_payload_key, "query"))
         bindings.add('f12')(self.toggle_overview)
+        bindings.add('insert')(self.action(self.insert))
+        bindings.add('delete')(self.action(self.delete))
         bindings.add('home')(self.action(self.overview.home))
         bindings.add('end')(self.action(self.overview.end))
         bindings.add('pageup')(self.action(self.overview.page_up))
@@ -126,12 +118,11 @@ class Neotop(Application):
         return f
 
     def toggle_overview(self, _):
-        if self.layout is self.layout_with_overview:
-            self.layout = self.layout_without_overview
-        else:
-            self.layout = self.layout_with_overview
+        self.overview_visible = not self.overview_visible
+        self.update_layout()
 
     def do_exit(self, _):
         self.overview.exit()
-        self.running = False
+        for window in self.server_windows:
+            window.content.exit()
         get_app().exit(result=0)

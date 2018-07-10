@@ -21,6 +21,7 @@ from time import sleep
 
 from neo4j.v1 import GraphDatabase, ServiceUnavailable, READ_ACCESS
 from prompt_toolkit.layout import UIControl
+from prompt_toolkit.utils import Event
 
 
 class DataControl(UIControl):
@@ -36,10 +37,15 @@ class DataControl(UIControl):
         self._refresh_period = 1.0
         self._refresh_thread = Thread(target=self.loop)
         self._refresh_thread.start()
+        self._on_fresh_data = Event(self)
 
     @property
     def address(self):
         return self._address
+
+    @property
+    def up(self):
+        return bool(self._driver)
 
     def loop(self):
         while self._running:
@@ -53,6 +59,7 @@ class DataControl(UIControl):
                 self._error = error
             else:
                 self._error = None
+            self._on_fresh_data.fire()
             self._invalidated = False
             for _ in range(int(10 * self._refresh_period)):
                 if self._running and not self._invalidated:
@@ -68,6 +75,12 @@ class DataControl(UIControl):
         self._refresh_thread.join()
         if self._driver:
             self._driver.close()
+
+    def get_invalidate_events(self):
+        """
+        Return the Window invalidate events.
+        """
+        yield self._on_fresh_data
 
     def fetch_data(self, tx):
         """ Retrieve data from database.

@@ -30,14 +30,12 @@ class OverviewControl(DataControl):
         u"READ_REPLICA",
     ]
 
-    def __init__(self, address, auth, visible, on_select):
+    def __init__(self, address, auth):
         super(OverviewControl, self).__init__(address, auth)
         self.config = {}
         self.mode = None
         self.servers = dict.fromkeys(self.server_roles, [])
         self.max_width = 0
-        self.visible = visible
-        self.on_select = on_select
         self.selected_role = u"LEADER"
         self.selected_index = 0
 
@@ -106,20 +104,9 @@ class OverviewControl(DataControl):
             show_cursor=False,
         )
 
-    def select(self, role):
-        n_servers = len(self.servers[role])
-        if n_servers == 0:
-            self.selected_index = -1
-            return False
-        if self.selected_role == role:
-            if n_servers == 1 and self.selected_index == 0:
-                return False
-            self.selected_index = (self.selected_index + 1) % n_servers
-        else:
-            self.selected_role = role
-            self.selected_index = 0
-        self.on_select(self.servers[role][self.selected_index])
-        return True
+    @property
+    def selected_address(self):
+        return self.servers[self.selected_role][self.selected_index]
 
     def home(self, event):
         if not self.servers[self.selected_role]:
@@ -129,7 +116,6 @@ class OverviewControl(DataControl):
         if selected_role != self.selected_role or selected_index != self.selected_index:
             self.selected_role = selected_role
             self.selected_index = selected_index
-            self.on_select(self.servers[self.selected_role][self.selected_index])
             return True
         else:
             return False
@@ -142,7 +128,6 @@ class OverviewControl(DataControl):
         if selected_role != self.selected_role or selected_index != self.selected_index:
             self.selected_role = selected_role
             self.selected_index = selected_index
-            self.on_select(self.servers[self.selected_role][self.selected_index])
             return True
         else:
             return False
@@ -156,7 +141,6 @@ class OverviewControl(DataControl):
             new_role_index = (old_role_index - 1) % len(self.server_roles)
             self.selected_role = self.server_roles[new_role_index]
             self.selected_index = len(self.servers[self.selected_role]) - 1
-        self.on_select(self.servers[self.selected_role][self.selected_index])
         return True
 
     def page_down(self, event):
@@ -168,5 +152,4 @@ class OverviewControl(DataControl):
             new_role_index = (old_role_index + 1) % len(self.server_roles)
             self.selected_role = self.server_roles[new_role_index]
             self.selected_index = 0
-        self.on_select(self.servers[self.selected_role][self.selected_index])
         return True

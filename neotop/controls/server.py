@@ -18,10 +18,10 @@
 
 from __future__ import unicode_literals
 
-from neo4j.v1 import urlparse
-from prompt_toolkit.layout import UIContent, UIControl
+from prompt_toolkit.layout import UIContent
 
-from neotop.database import DatabaseInfo
+from neotop.config import Config
+from neotop.controls.data import DataControl
 from neotop.units import number_string, time_str
 
 
@@ -73,10 +73,10 @@ mode_styles = {
 }
 
 
-class ServerControl(UIControl):
+class ServerControl(DataControl):
 
     def __init__(self, address, auth):
-        self.database = DatabaseInfo(address, auth)
+        super(ServerControl, self).__init__(address, auth)
         self.title = []
         self.lines = [
             self.title,
@@ -88,6 +88,8 @@ class ServerControl(UIControl):
         }
         self.alignments = ["<"]
         self.payload_key = "query"
+        self.config = None
+        self.queries = None
 
     def set_payload_key(self, event, key):
         self.payload_key = key
@@ -117,20 +119,26 @@ class ServerControl(UIControl):
                     widths[x] = size
         return widths
 
+    def fetch_data(self, tx):
+        config_result = tx.run("CALL dbms.queryJmx('org.neo4j:*')")
+        queries_result = tx.run("CALL dbms.listQueries")
+        self.config = Config(config_result.data())
+        self.queries = queries_result.data()
+        self.update_content()
+
     def update_content(self):
         self.title[:] = []
         self.clear()
-        if self.database.up:
+        if self.up:
             self.set_fields(DEFAULT_FIELDS)
             self.set_alignments(DEFAULT_ALIGNMENTS)
-            k0 = self.database.config.instances[u"kernel#0"]
-            title = ("{address}:{port} up {uptime}, "
+            k0 = self.config.instances[u"kernel#0"]
+            title = ("{address} up {uptime}, "
                      "{major}.{minor}.{patch} "
                      "tx(b={begun} c={committed} r={rolled_back} hi={peak}) "
                      "store={store_size}").format(
                 mode=k0.configuration[u"dbms.mode"][0],
-                address=k0.configuration[u"dbms.connectors.default_advertised_address"],
-                port=urlparse(self.database.uri).port,
+                address=self.address,
                 uptime=k0.kernel.uptime,
                 store_size=number_string(k0.store_sizes[u"TotalStoreSize"], K=1024),
                 product=k0.kernel.product_info[0],
@@ -143,7 +151,7 @@ class ServerControl(UIControl):
                 peak=number_string(k0.transactions[u"PeakNumberOfConcurrentTransactions"]),
             )
             self.lines[1][-1] = ("", self.payload_key.upper())
-            for q in sorted(self.database.queries, key=lambda q0: q0["elapsedTimeMillis"], reverse=True):
+            for q in sorted(self.queries, key=lambda q0: q0["elapsedTimeMillis"], reverse=True):
                 q["queryId"] = q["queryId"].partition("-")[-1]
                 q["query"] = q["query"].replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
                 client = "{}/{}".format(q["protocol"][0].upper(), q["clientAddress"])
@@ -172,7 +180,7 @@ class ServerControl(UIControl):
         else:
             self.set_fields([])
             self.set_alignments([])
-            title = "{} down".format(urlparse(self.database.uri).netloc)
+            title = "{} down".format(self.address)
             self.set_title_style("fg:ansiwhite bg:ansired")
         self.title.append(("", title))
 
