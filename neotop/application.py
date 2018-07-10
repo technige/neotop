@@ -51,22 +51,22 @@ class Neotop(Application):
         self.address = "%s:%s" % (host or "localhost", port or 7687)
         self.user = user or "neo4j"
         self.auth = (self.user, password or "")
-        self.panel = ServerControl(self.address, self.auth)
+        self.server = ServerControl(self.address, self.auth)
         self.overview = OverviewControl(self.address, self.auth, visible=False,
-                                        on_select=self.panel.database.set_address)
-        self.panel_windows = [
-            Window(content=self.panel.control),
+                                        on_select=self.server.database.set_address)
+        self.server_windows = [
+            Window(content=self.server),
         ]
         self.overview_window = Window(content=self.overview, dont_extend_width=True)
         self.layout_with_overview = Layout(
             VSplit([
-                HSplit(self.panel_windows),
+                HSplit(self.server_windows),
                 Frame(self.overview_window),
             ]),
         )
         self.layout_without_overview = Layout(
             VSplit([
-                HSplit(self.panel_windows),
+                HSplit(self.server_windows),
             ]),
         )
         super(Neotop, self).__init__(
@@ -90,10 +90,10 @@ class Neotop(Application):
             self.sleep()
 
     def update_info(self):
-        self.panel.database.update()
+        self.server.database.update()
 
     def update_content(self):
-        self.panel.update_content()
+        self.server.update_content()
         self.invalidate()
 
     def sleep(self):
@@ -107,10 +107,10 @@ class Neotop(Application):
     def bindings(self):
         bindings = KeyBindings()
         bindings.add('c-c')(self.do_exit)
-        bindings.add('i')(self.action(self.panel.set_indexes_payload))
-        bindings.add('m')(self.action(self.panel.set_metadata_payload))
-        bindings.add('p')(self.action(self.panel.set_parameters_payload))
-        bindings.add('q')(self.action(self.panel.set_query_payload))
+        bindings.add('i')(self.action(self.server.set_payload_key, "indexes"))
+        bindings.add('m')(self.action(self.server.set_payload_key, "metaData"))
+        bindings.add('p')(self.action(self.server.set_payload_key, "parameters"))
+        bindings.add('q')(self.action(self.server.set_payload_key, "query"))
         bindings.add('f12')(self.toggle_overview)
         bindings.add('home')(self.action(self.overview.home))
         bindings.add('end')(self.action(self.overview.end))

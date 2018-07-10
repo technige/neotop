@@ -73,95 +73,13 @@ mode_styles = {
 }
 
 
-class ServerControl(object):
+class ServerControl(UIControl):
 
     def __init__(self, address, auth):
         self.database = DatabaseInfo(address, auth)
         self.title = []
-        self.control = TableViewControl(self.title)
-        self.payload_key = "query"
-
-    def set_query_payload(self, event):
-        self.payload_key = "query"
-        return True
-
-    def set_parameters_payload(self, event):
-        self.payload_key = "parameters"
-        return True
-
-    def set_metadata_payload(self, event):
-        self.payload_key = "metaData"
-        return True
-
-    def set_indexes_payload(self, event):
-        self.payload_key = "indexes"
-        return True
-
-    def update_content(self):
-        self.title[:] = []
-        self.control.clear()
-        if self.database.up:
-            self.control.set_fields(DEFAULT_FIELDS)
-            self.control.set_alignments(DEFAULT_ALIGNMENTS)
-            k0 = self.database.config.instances[u"kernel#0"]
-            title = ("{address}:{port} up {uptime}, "
-                     "{major}.{minor}.{patch} "
-                     "tx(b={begun} c={committed} r={rolled_back} hi={peak}) "
-                     "store={store_size}").format(
-                mode=k0.configuration[u"dbms.mode"][0],
-                address=k0.configuration[u"dbms.connectors.default_advertised_address"],
-                port=urlparse(self.database.uri).port,
-                uptime=k0.kernel.uptime,
-                store_size=number_string(k0.store_sizes[u"TotalStoreSize"], K=1024),
-                product=k0.kernel.product_info[0],
-                major=k0.kernel.product_info[1],
-                minor=k0.kernel.product_info[2],
-                patch=k0.kernel.product_info[3],
-                begun=number_string(k0.transactions[u"NumberOfOpenedTransactions"]),
-                committed=number_string(k0.transactions[u"NumberOfCommittedTransactions"]),
-                rolled_back=number_string(k0.transactions[u"NumberOfRolledBackTransactions"]),
-                peak=number_string(k0.transactions[u"PeakNumberOfConcurrentTransactions"]),
-            )
-            self.control.lines[1][-1] = ("", self.payload_key.upper())
-            for q in sorted(self.database.queries, key=lambda q0: q0["elapsedTimeMillis"], reverse=True):
-                q["queryId"] = q["queryId"].partition("-")[-1]
-                q["query"] = q["query"].replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
-                client = "{}/{}".format(q["protocol"][0].upper(), q["clientAddress"])
-                if q["status"] == "running":
-                    payload_style = "fg:ansigreen"
-                elif q["status"] == "planning":
-                    payload_style = "fg:ansiblue"
-                else:
-                    print(q["status"])
-                    payload_style = ""
-                self.control.append([
-                    ("", q["queryId"]),
-                    ("fg:ansibrightblack" if q["username"] == "neo4j" else "", q["username"]),
-                    ("", client),
-                    ("", number_string(q["allocatedBytes"], K=1024)),
-                    ("", number_string(q["activeLockCount"])),
-                    ("", number_string(q["pageHits"])),
-                    ("", number_string(q["pageFaults"])),
-                    ("", time_str(q["elapsedTimeMillis"])),
-                    ("", time_str(q["cpuTimeMillis"])),
-                    ("", time_str(q["waitTimeMillis"])),
-                    ("", time_str(q["idleTimeMillis"])),
-                    (payload_style, q[self.payload_key]),
-                ])
-            self.control.set_title_style(mode_styles[k0.configuration[u"dbms.mode"]])
-        else:
-            self.control.set_fields([])
-            self.control.set_alignments([])
-            title = "{} down".format(urlparse(self.database.uri).netloc)
-            self.control.set_title_style("fg:ansiwhite bg:ansired")
-        self.title.append(("", title))
-
-
-class TableViewControl(UIControl):
-
-    def __init__(self, title):
         self.lines = [
-            title,
+            self.title,
             [("", "")],
         ]
         self.line_styles = {
@@ -169,6 +87,11 @@ class TableViewControl(UIControl):
             1: "fg:ansiwhite bg:ansibrightblack",
         }
         self.alignments = ["<"]
+        self.payload_key = "query"
+
+    def set_payload_key(self, event, key):
+        self.payload_key = key
+        return True
 
     def set_title_style(self, style):
         self.line_styles[0] = style
@@ -193,6 +116,65 @@ class TableViewControl(UIControl):
                 if size > widths[x]:
                     widths[x] = size
         return widths
+
+    def update_content(self):
+        self.title[:] = []
+        self.clear()
+        if self.database.up:
+            self.set_fields(DEFAULT_FIELDS)
+            self.set_alignments(DEFAULT_ALIGNMENTS)
+            k0 = self.database.config.instances[u"kernel#0"]
+            title = ("{address}:{port} up {uptime}, "
+                     "{major}.{minor}.{patch} "
+                     "tx(b={begun} c={committed} r={rolled_back} hi={peak}) "
+                     "store={store_size}").format(
+                mode=k0.configuration[u"dbms.mode"][0],
+                address=k0.configuration[u"dbms.connectors.default_advertised_address"],
+                port=urlparse(self.database.uri).port,
+                uptime=k0.kernel.uptime,
+                store_size=number_string(k0.store_sizes[u"TotalStoreSize"], K=1024),
+                product=k0.kernel.product_info[0],
+                major=k0.kernel.product_info[1],
+                minor=k0.kernel.product_info[2],
+                patch=k0.kernel.product_info[3],
+                begun=number_string(k0.transactions[u"NumberOfOpenedTransactions"]),
+                committed=number_string(k0.transactions[u"NumberOfCommittedTransactions"]),
+                rolled_back=number_string(k0.transactions[u"NumberOfRolledBackTransactions"]),
+                peak=number_string(k0.transactions[u"PeakNumberOfConcurrentTransactions"]),
+            )
+            self.lines[1][-1] = ("", self.payload_key.upper())
+            for q in sorted(self.database.queries, key=lambda q0: q0["elapsedTimeMillis"], reverse=True):
+                q["queryId"] = q["queryId"].partition("-")[-1]
+                q["query"] = q["query"].replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
+                client = "{}/{}".format(q["protocol"][0].upper(), q["clientAddress"])
+                if q["status"] == "running":
+                    payload_style = "fg:ansigreen"
+                elif q["status"] == "planning":
+                    payload_style = "fg:ansiblue"
+                else:
+                    print(q["status"])
+                    payload_style = ""
+                self.append([
+                    ("", q["queryId"]),
+                    ("fg:ansibrightblack" if q["username"] == "neo4j" else "", q["username"]),
+                    ("", client),
+                    ("", number_string(q["allocatedBytes"], K=1024)),
+                    ("", number_string(q["activeLockCount"])),
+                    ("", number_string(q["pageHits"])),
+                    ("", number_string(q["pageFaults"])),
+                    ("", time_str(q["elapsedTimeMillis"])),
+                    ("", time_str(q["cpuTimeMillis"])),
+                    ("", time_str(q["waitTimeMillis"])),
+                    ("", time_str(q["idleTimeMillis"])),
+                    (payload_style, q[self.payload_key]),
+                ])
+            self.set_title_style(mode_styles[k0.configuration[u"dbms.mode"]])
+        else:
+            self.set_fields([])
+            self.set_alignments([])
+            title = "{} down".format(urlparse(self.database.uri).netloc)
+            self.set_title_style("fg:ansiwhite bg:ansired")
+        self.title.append(("", title))
 
     def create_content(self, width, height):
         widths = self.widths()
