@@ -19,26 +19,41 @@
 from prompt_toolkit.layout import UIControl, UIContent
 
 
-class TableControl(UIControl):
+class TableViewControl(UIControl):
 
-    def __init__(self, columns, alignments):
-        self.lines = [columns]
-        self.line_styles = {}
-        self.alignments = list(alignments)
+    def __init__(self, title):
+        self.lines = [
+            title,
+            [("", "")],
+        ]
+        self.line_styles = {
+            0: "fg:ansiwhite bg:ansibrightblack",
+            1: "fg:ansiwhite bg:ansibrightblack",
+        }
+        self.alignments = ["<"]
+
+    def set_title_style(self, style):
+        self.line_styles[0] = style
+
+    def set_fields(self, fields):
+        self.lines[1] = list(fields or [("", "")])
+
+    def set_alignments(self, alignments):
+        self.alignments[:] = list(alignments or ["<"])
 
     def clear(self):
-        self.lines[1:] = []
+        self.lines[2:] = []
 
     def append(self, values):
         self.lines.append([(style, str(value)) for style, value in values])
 
     def widths(self):
-        widths = list(map(len, self.lines[0]))
-        for row in self.lines:
-            for i, (_, cell) in enumerate(row):
+        widths = list(map(len, self.lines[1]))
+        for row in self.lines[1:]:
+            for x, (_, cell) in enumerate(row):
                 size = len(cell)
-                if size > widths[i]:
-                    widths[i] = size
+                if size > widths[x]:
+                    widths[x] = size
         return widths
 
     def create_content(self, width, height):
@@ -47,12 +62,16 @@ class TableControl(UIControl):
         widths[-1] += width - used_width
 
         def get_line(y):
+            if y == 0:
+                u_width = sum(len(cell) for style, cell in self.lines[y])
+                return [(style or self.line_styles[y], cell) for style, cell in self.lines[y]] + \
+                       [(self.line_styles[y], " " * (width - u_width))]
             line = []
-            for i, (style, cell) in enumerate(self.lines[y]):
-                if i > 0:
+            for x, (style, cell) in enumerate(self.lines[y]):
+                if x > 0:
                     line.append((self.line_styles.get(y, ""), " "))
-                alignment = self.alignments[i]
-                cell_width = widths[i]
+                alignment = self.alignments[x]
+                cell_width = widths[x]
                 style = self.line_styles.get(y, style)
                 if alignment == ">":
                     line.append((style, cell.rjust(cell_width)))

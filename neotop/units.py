@@ -23,10 +23,10 @@ def trim(n):
     return n.rstrip("0").rstrip(".")
 
 
-def number_string(n, scale=1000):
-    K = scale
-    M = K * K
-    G = K * K * K
+def number_string(n, K=1000):
+    M = K ** 2
+    G = K ** 3
+    T = K ** 4
     if n == 0:
         return "0"
     elif n < K:
@@ -35,8 +35,10 @@ def number_string(n, scale=1000):
         return "%.3g" % (n / K) + "K"
     elif n < G:
         return "%.3g" % (n / M) + "M"
+    elif n < T:
+        return "%.3g" % (n / G) + "G"
     else:
-        return "%.9g" % (n / G) + "G"
+        return "%.3g" % (n / T) + "T"
 
 
 def time_str(n_millis):

@@ -17,8 +17,8 @@ Execution
 
 ::
 
-    $ export NEO4J_URI=bolt://localhost:7687
-    $ export NEO4J_AUTH=neo4j:password
+    $ export NEO4J_ADDR="localhost:7687"
+    $ export NEO4J_AUTH="neo4j:password"
     $ neotop
 
 
