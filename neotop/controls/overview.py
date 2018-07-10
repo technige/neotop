@@ -30,27 +30,36 @@ class OverviewControl(DataControl):
         u"READ_REPLICA",
     ]
 
-    def __init__(self, address, auth, on_select):
+    def __init__(self, address, auth, visible, on_select):
         super(OverviewControl, self).__init__(address, auth)
         self.config = {}
+        self.mode = None
         self.servers = dict.fromkeys(self.server_roles, [])
         self.max_width = 0
+        self.visible = visible
         self.on_select = on_select
-        self.selected_role = self.server_roles[0]
+        self.selected_role = u"LEADER"
         self.selected_index = 0
+
+    def preferred_width(self, max_available_width):
+        return self.max_width
 
     def fetch_data(self, tx):
         self.config.clear()
         for record in tx.run("CALL dbms.listConfig"):
             self.config[record["name"]] = record["value"]
-        if self.config[u"dbms.mode"] == u"CORE":
+        self.mode = self.config[u"dbms.mode"]
+        if self.mode == u"CORE":
             overview = tx.run("CALL dbms.cluster.overview").data()
             widths = [0]
             for role in self.servers:
                 self.servers[role] = [urlparse(server[u"addresses"][0]).netloc
                                       for server in overview if server[u"role"] == role]
                 widths.extend(map(len, self.servers[role]))
-            self.max_width = max(widths)
+            self.max_width = max(widths) + 4
+        elif self.mode == u"SINGLE":
+            self.servers[u"LEADER"] = [self.address]
+            self.max_width = len(self.address) + 4
 
     def create_content(self, width, height):
         lines = []
@@ -58,21 +67,33 @@ class OverviewControl(DataControl):
         def append_servers(role):
             for i, server in enumerate(self.servers[role]):
                 if role == self.selected_role and i == self.selected_index:
-                    style = "bg:ansiblue fg:ansiwhite"
+                    lines.append([
+                        ("", " "),
+                        ("fg:ansigreen", ">"),
+                        ("", " "),
+                        ("", server.ljust(width - 4)),
+                        ("", " "),
+                    ])
                 else:
-                    style = ""
-                lines.append([(style, server.ljust(width))])
+                    lines.append([
+                        ("", "   "),
+                        ("", server.ljust(width - 4)),
+                        ("", " "),
+                    ])
 
         if self.servers[u"LEADER"]:
-            lines.append([("fg:ansibrightblack", "Leader".ljust(width))])
+            if self.mode == u"CORE":
+                lines.append([("fg:ansibrightblack", " Leader".ljust(width))])
+            else:
+                lines.append([("fg:ansibrightblack", " Single".ljust(width))])
             append_servers(u"LEADER")
             lines.append([])
         if self.servers[u"FOLLOWER"]:
-            lines.append([("fg:ansibrightblack", "Followers".ljust(width))])
+            lines.append([("fg:ansibrightblack", " Followers".ljust(width))])
             append_servers(u"FOLLOWER")
             lines.append([])
         if self.servers[u"READ_REPLICA"]:
-            lines.append([("fg:ansibrightblack", "Read replicas".ljust(width))])
+            lines.append([("fg:ansibrightblack", " Read replicas".ljust(width))])
             append_servers(u"READ_REPLICA")
             lines.append([])
 

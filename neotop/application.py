@@ -27,9 +27,10 @@ from time import sleep
 from prompt_toolkit.application import Application
 from prompt_toolkit.application.current import get_app
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout.containers import Window, VSplit
+from prompt_toolkit.layout.containers import Window, VSplit, HSplit
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.styles import Style
+from prompt_toolkit.widgets import Frame
 
 from neotop.controls.overview import OverviewControl
 from neotop.controls.server import ServerControl
@@ -45,20 +46,31 @@ class Neotop(Application):
         # TODO
     })
 
-    def __init__(self):
-        self.panel = ServerControl(NEO4J_ADDRESS, NEO4J_AUTH)
-        self.overview = OverviewControl(NEO4J_ADDRESS, NEO4J_AUTH, on_select=self.panel.database.set_address)
-        self.panel_window = Window(content=self.panel.control)
-        self.separator_window = Window(width=0, dont_extend_width=True)
-        self.overview_window = Window(content=self.overview, width=0, dont_extend_width=False)
+    def __init__(self, address=None, user=None, password=None):
+        host, _, port = (address or "localhost:7687").partition(":")
+        self.address = "%s:%s" % (host or "localhost", port or 7687)
+        self.user = user or "neo4j"
+        self.auth = (self.user, password or "")
+        self.panel = ServerControl(self.address, self.auth)
+        self.overview = OverviewControl(self.address, self.auth, visible=False,
+                                        on_select=self.panel.database.set_address)
+        self.panel_windows = [
+            Window(content=self.panel.control),
+        ]
+        self.overview_window = Window(content=self.overview, dont_extend_width=True)
+        self.layout_with_overview = Layout(
+            VSplit([
+                HSplit(self.panel_windows),
+                Frame(self.overview_window),
+            ]),
+        )
+        self.layout_without_overview = Layout(
+            VSplit([
+                HSplit(self.panel_windows),
+            ]),
+        )
         super(Neotop, self).__init__(
-            layout=Layout(
-                VSplit([
-                    self.panel_window,
-                    self.separator_window,
-                    self.overview_window,
-                ]),
-            ),
+            layout=self.layout_without_overview,
             key_bindings=self.bindings,
             style=self.style,
             # mouse_support=True,
@@ -114,20 +126,12 @@ class Neotop(Application):
         return f
 
     def toggle_overview(self, _):
-        if self.overview_window.width == 0:
-            self.overview_window.width = self.overview.max_width
-            if self.overview_window.width:
-                self.separator_window.width = 1
-                self.changed = True
-            else:
-                self.separator_window.width = 0
-                self.changed = False
+        if self.layout is self.layout_with_overview:
+            self.layout = self.layout_without_overview
         else:
-            self.overview_window.width = 0
-            self.separator_window.width = 0
-            self.changed = True
+            self.layout = self.layout_with_overview
 
     def do_exit(self, _):
-        self.overview.close()
+        self.overview.exit()
         self.running = False
         get_app().exit(result=0)

@@ -26,7 +26,8 @@ from prompt_toolkit.layout import UIControl
 class DataControl(UIControl):
 
     def __init__(self, address, auth):
-        self._uri = "bolt://{}".format(address)
+        self._address = address
+        self._uri = "bolt://{}".format(self.address)
         self._auth = auth
         self._driver = None
         self._error = None
@@ -35,6 +36,10 @@ class DataControl(UIControl):
         self._refresh_period = 1.0
         self._refresh_thread = Thread(target=self.loop)
         self._refresh_thread.start()
+
+    @property
+    def address(self):
+        return self._address
 
     def loop(self):
         while self._running:
@@ -58,8 +63,9 @@ class DataControl(UIControl):
     def invalidate(self):
         self._invalidated = True
 
-    def close(self):
+    def exit(self):
         self._running = False
+        self._refresh_thread.join()
         if self._driver:
             self._driver.close()
 

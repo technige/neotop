@@ -16,9 +16,26 @@
 # limitations under the License.
 
 
-def main():
+import click
+
+
+@click.command()
+@click.option("-u", "--user",
+              envvar="NEO4J_USER")
+@click.option("-p", "--password",
+              envvar="NEO4J_PASSWORD",
+              prompt="Neo4j password",
+              confirmation_prompt=False,
+              hide_input=True)
+@click.argument("address",
+                envvar="NEO4J_ADDRESS")
+def main(address=None, user=None, password=None):
     from neotop.application import Neotop
-    raise SystemExit(Neotop().run())
+    raise SystemExit(Neotop(
+        address=address,
+        user=user,
+        password=password,
+    ).run())
 
 
 if __name__ == '__main__':
