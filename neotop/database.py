@@ -16,7 +16,7 @@
 # limitations under the License.
 
 
-from neo4j.v1 import GraphDatabase, CypherError, ServiceUnavailable, READ_ACCESS, urlparse
+from neo4j.v1 import GraphDatabase, CypherError, ServiceUnavailable, READ_ACCESS
 
 from neotop.config import Config
 
@@ -24,20 +24,8 @@ from neotop.config import Config
 def get_info(tx, db):
     config_result = tx.run("CALL dbms.queryJmx('org.neo4j:*')")
     queries_result = tx.run("CALL dbms.listQueries")
-    if db.is_cluster is not False:
-        overview_result = tx.run("CALL dbms.cluster.overview")
     db.config = Config(config_result.data())
     db.queries = queries_result.data()
-    if db.is_cluster is not False:
-        try:
-            db.overview = overview_result.data()
-        except CypherError as error:
-            if error.code == u"Neo.ClientError.Procedure.ProcedureNotFound":
-                db.is_cluster = False
-            else:
-                raise
-        else:
-            db.is_cluster = True
 
 
 class DatabaseInfo(object):
@@ -48,9 +36,7 @@ class DatabaseInfo(object):
         self.driver = None
         self.config = None
         self.queries = None
-        self.overview = []
         self.last_error = None
-        self.is_cluster = None
 
     @property
     def uri(self):
@@ -59,15 +45,6 @@ class DatabaseInfo(object):
     def set_address(self, address):
         self.address = address
         self.driver = None
-
-    def has_servers(self, role):
-        for server in self.overview:
-            if server[u"role"] == role:
-                return True
-        return False
-
-    def get_servers(self, role):
-        return [urlparse(server[u"addresses"][0]).netloc for server in self.overview if server[u"role"] == role]
 
     @property
     def up(self):

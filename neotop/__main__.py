@@ -16,20 +16,9 @@
 # limitations under the License.
 
 
-from sys import stderr
-
-from neo4j.exceptions import CypherError, ServiceUnavailable
-
-from neotop.application import Neotop
-
-
 def main():
-    try:
-        neotop = Neotop()
-        raise SystemExit(neotop.run())
-    except (CypherError, ServiceUnavailable) as error:
-        stderr.write("%s: %s\n" % (error.__class__.__name__, error.args[0]))
-        raise SystemExit(1)
+    from neotop.application import Neotop
+    raise SystemExit(Neotop().run())
 
 
 if __name__ == '__main__':
