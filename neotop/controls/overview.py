@@ -16,7 +16,7 @@
 # limitations under the License.
 
 
-from neo4j.v1 import urlparse
+from neo4j.v1 import urlparse, CypherError
 from prompt_toolkit.layout import UIContent
 
 from neotop.controls.data import DataControl
@@ -32,9 +32,15 @@ class OverviewControl(DataControl):
 
     def __init__(self, address, auth):
         super(OverviewControl, self).__init__(address, auth)
-        self.config = {}
         self.mode = None
         self.servers = dict.fromkeys(self.server_roles, [])
+        self.address_styles = {}
+        self.unused_styles = {
+            "fg:ansiwhite bg:ansiblue",
+            "fg:ansiwhite bg:ansicyan",
+            "fg:ansiwhite bg:ansimagenta",
+            "fg:ansiwhite bg:ansiyellow",
+        }
         self.max_width = 0
         self.selected_role = u"LEADER"
         self.selected_index = 0
@@ -43,10 +49,17 @@ class OverviewControl(DataControl):
         return self.max_width
 
     def fetch_data(self, tx):
-        self.config.clear()
-        for record in tx.run("CALL dbms.listConfig"):
-            self.config[record["name"]] = record["value"]
-        self.mode = self.config[u"dbms.mode"]
+        try:
+            config = {}
+            for record in tx.run("CALL dbms.listConfig"):
+                config[record["name"]] = record["value"]
+        except CypherError as error:
+            if error.code == "Neo.ClientError.Security.Forbidden":
+                self.mode = u"UNKNOWN"
+            else:
+                raise
+        else:
+            self.mode = config[u"dbms.mode"]
         if self.mode == u"CORE":
             overview = tx.run("CALL dbms.cluster.overview").data()
             widths = [0]
@@ -54,28 +67,31 @@ class OverviewControl(DataControl):
                 self.servers[role] = [urlparse(server[u"addresses"][0]).netloc
                                       for server in overview if server[u"role"] == role]
                 widths.extend(map(len, self.servers[role]))
-            self.max_width = max(widths) + 4
-        elif self.mode == u"SINGLE":
+            self.max_width = max(widths) + 5
+        else:
             self.servers[u"LEADER"] = [self.address]
-            self.max_width = len(self.address) + 4
+            self.max_width = len(self.address) + 5
 
     def create_content(self, width, height):
         lines = []
 
         def append_servers(role):
-            for i, server in enumerate(self.servers[role]):
+            for i, address in enumerate(self.servers[role]):
+                address_style = self.address_styles.get(address, "fg:ansiwhite bg:ansiblack")
                 if role == self.selected_role and i == self.selected_index:
                     lines.append([
                         ("", " "),
-                        ("fg:ansigreen", ">"),
+                        (address_style, "  "),
                         ("", " "),
-                        ("", server.ljust(width - 4)),
+                        ("fg:ansiblack bg:ansigray", address.ljust(width - 5)),
                         ("", " "),
                     ])
                 else:
                     lines.append([
-                        ("", "   "),
-                        ("", server.ljust(width - 4)),
+                        ("", " "),
+                        (address_style, "  "),
+                        ("", " "),
+                        ("", address.ljust(width - 5)),
                         ("", " "),
                     ])
 
@@ -83,7 +99,7 @@ class OverviewControl(DataControl):
             if self.mode == u"CORE":
                 lines.append([("fg:ansibrightblack", " Leader".ljust(width))])
             else:
-                lines.append([("fg:ansibrightblack", " Single".ljust(width))])
+                lines.append([("fg:ansibrightblack", " Server".ljust(width))])
             append_servers(u"LEADER")
             lines.append([])
         if self.servers[u"FOLLOWER"]:
@@ -106,7 +122,27 @@ class OverviewControl(DataControl):
 
     @property
     def selected_address(self):
-        return self.servers[self.selected_role][self.selected_index]
+        try:
+            return self.servers[self.selected_role][self.selected_index]
+        except IndexError:
+            return self.address
+
+    def add_highlight(self):
+        address = self.selected_address
+        if address not in self.address_styles and self.unused_styles:
+            address_style = sorted(self.unused_styles)[0]
+            self.unused_styles.remove(address_style)
+            self.address_styles[address] = address_style
+        return self.address_styles.get(address)
+
+    def remove_highlight(self):
+        address = self.selected_address
+        if address in self.address_styles:
+            address_style = self.address_styles[address]
+            self.unused_styles.add(address_style)
+            del self.address_styles[address]
+            return address_style
+        return None
 
     def home(self, event):
         if not self.servers[self.selected_role]:

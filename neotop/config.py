@@ -97,7 +97,7 @@ class KernelSection(Section):
     def product_info(self):
         value = self.data[u"KernelVersion"]
         name, version, build = value.split(u",")
-        version = tuple(map(int, version.partition(u":")[-1].strip().split(".")))
+        version = tuple(map(int, version.partition(u":")[-1].strip().partition("-")[0].split(".")))
         return (name,) + version + (build,)
 
 

@@ -35,8 +35,8 @@ class DataControl(UIControl):
         self._invalidated = False
         self._refresh_period = 1.0
         self._refresh_thread = Thread(target=self.loop)
-        self._refresh_thread.start()
         self._on_fresh_data = Event(self)
+        self._refresh_thread.start()
 
     @property
     def address(self):
@@ -46,16 +46,19 @@ class DataControl(UIControl):
     def up(self):
         return bool(self._driver)
 
+    def work(self, unit, on_error):
+        try:
+            if not self._driver:
+                self._driver = GraphDatabase.driver(self._uri, auth=self._auth, max_retry_time=1.0)
+            with self._driver.session(READ_ACCESS) as session:
+                session.read_transaction(unit)
+        except (CypherError, ServiceUnavailable) as error:
+            self._driver = None
+            on_error(error)
+
     def loop(self):
         while self._running:
-            try:
-                if not self._driver:
-                    self._driver = GraphDatabase.driver(self._uri, auth=self._auth, max_retry_time=1.0)
-                with self._driver.session(READ_ACCESS) as session:
-                    session.read_transaction(self.fetch_data)
-            except (CypherError, ServiceUnavailable) as error:
-                self._driver = None
-                self.on_fetch_error(error)
+            self.work(self.fetch_data, self.on_fetch_error)
             self._on_fresh_data.fire()
             self._invalidated = False
             for _ in range(int(10 * self._refresh_period)):

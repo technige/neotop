@@ -22,7 +22,7 @@ from prompt_toolkit.layout import UIContent
 
 from neotop.config import Config
 from neotop.controls.data import DataControl
-from neotop.units import number_string, time_str
+from neotop.units import number_string, number_text, time_text
 
 
 DEFAULT_FIELDS = [
@@ -55,48 +55,25 @@ DEFAULT_ALIGNMENTS = [
 ]
 
 
-# 'SINGLE' for stand-alone operation
-# 'HA' for operating as a member in an HA cluster
-# 'ARBITER' for a cluster member with no database in an HA cluster
-# 'CORE' for operating as a core member of a Causal Cluster
-# 'READ_REPLICA' for operating as a read replica member of a Causal Cluster.
-mode_styles = {
-
-    "SINGLE": "fg:ansiwhite bg:ansiblue",
-
-    "CORE": "fg:ansiwhite bg:ansiblue",
-    "READ_REPLICA": "fg:ansiwhite bg:ansiblue",
-
-    "HA": "fg:ansiwhite bg:ansiblue",
-    "ARBITER": "fg:ansiwhite bg:ansiblue",
-
-}
-
-
 class ServerControl(DataControl):
 
-    def __init__(self, address, auth):
+    def __init__(self, address, auth, status_style):
         super(ServerControl, self).__init__(address, auth)
         self.title = []
         self.lines = [
             self.title,
             [("", "")],
         ]
-        self.line_styles = {
-            0: "fg:ansiwhite bg:ansibrightblack",
-            1: "fg:ansiwhite bg:ansibrightblack",
-        }
         self.alignments = ["<"]
         self.payload_key = "query"
         self.config = None
         self.queries = None
+        self.status_style = status_style
+        self.header_style = "fg:ansiwhite bg:ansibrightblack"
 
     def set_payload_key(self, event, key):
         self.payload_key = key
         return True
-
-    def set_title_style(self, style):
-        self.line_styles[0] = style
 
     def set_fields(self, fields):
         self.lines[1] = list(fields or [("", "")])
@@ -127,16 +104,15 @@ class ServerControl(DataControl):
         self.update_content()
 
     def on_fetch_error(self, error):
-        self.title[:] = []
+        self.title[:] = [("bg:ansired", "  "), ("fg:ansiblack bg:ansigray", " ")]
         self.clear()
         self.set_fields([])
         self.set_alignments([])
         title = "{} down -- {}".format(self.address, error)
-        self.set_title_style("fg:ansiwhite bg:ansired")
         self.title.append(("", title))
 
     def update_content(self):
-        self.title[:] = []
+        self.title[:] = [(self.status_style, "  "), ("fg:ansiblack bg:ansigray", " ")]
         self.clear()
         self.set_fields(DEFAULT_FIELDS)
         self.set_alignments(DEFAULT_ALIGNMENTS)
@@ -174,18 +150,17 @@ class ServerControl(DataControl):
                 ("", q["queryId"]),
                 ("fg:ansibrightblack" if q["username"] == "neo4j" else "", q["username"]),
                 ("", client),
-                ("", number_string(q["allocatedBytes"], K=1024)),
-                ("", number_string(q["activeLockCount"])),
-                ("", number_string(q["pageHits"])),
-                ("", number_string(q["pageFaults"])),
-                ("", time_str(q["elapsedTimeMillis"])),
-                ("", time_str(q["cpuTimeMillis"])),
-                ("", time_str(q["waitTimeMillis"])),
-                ("", time_str(q["idleTimeMillis"])),
+                number_text(q["allocatedBytes"], K=1024),
+                number_text(q["activeLockCount"]),
+                number_text(q["pageHits"]),
+                number_text(q["pageFaults"]),
+                time_text(q["elapsedTimeMillis"]),
+                time_text(q["cpuTimeMillis"]),
+                time_text(q["waitTimeMillis"]),
+                time_text(q["idleTimeMillis"]),
                 (payload_style, q[self.payload_key]),
             ])
-        self.set_title_style(mode_styles[k0.configuration[u"dbms.mode"]])
-        self.title.append(("", title))
+        self.title.append(("fg:ansiblack bg:ansigray", title))
 
     def create_content(self, width, height):
         widths = self.widths()
@@ -195,15 +170,16 @@ class ServerControl(DataControl):
         def get_line(y):
             if y == 0:
                 u_width = sum(len(cell) for style, cell in self.lines[y])
-                return [(style or self.line_styles[y], cell) for style, cell in self.lines[y]] + \
-                       [(self.line_styles[y], " " * (width - u_width))]
+                return [(style, cell) for style, cell in self.lines[y]] + \
+                       [("fg:ansiblack bg:ansigray", " " * (width - u_width))]
             line = []
             for x, (style, cell) in enumerate(self.lines[y]):
+                if y == 1:
+                    style = self.header_style
                 if x > 0:
-                    line.append((self.line_styles.get(y, ""), " "))
+                    line.append((style, " "))
                 alignment = self.alignments[x]
                 cell_width = widths[x]
-                style = self.line_styles.get(y, style)
                 if alignment == ">":
                     line.append((style, cell.rjust(cell_width)))
                 else:

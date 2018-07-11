@@ -24,6 +24,8 @@ def trim(n):
 
 
 def number_string(n, K=1000):
+    if n is None:
+        return "?"
     M = K ** 2
     G = K ** 3
     T = K ** 4
@@ -41,7 +43,14 @@ def number_string(n, K=1000):
         return "%.3g" % (n / T) + "T"
 
 
+def number_text(n, K=1000):
+    s = number_string(n, K)
+    return "ansibrightblack" if s == "?" else "", s
+
+
 def time_str(n_millis):
+    if n_millis is None:
+        return "?"
     if n_millis == 0:
         return "0"
     if n_millis < 10000:
@@ -60,3 +69,8 @@ def time_str(n_millis):
     n_hours, n_mins = divmod(n_mins, 60)
     # Display as 1h02
     return "%dh%02d" % (n_hours, n_mins)
+
+
+def time_text(n_millis):
+    s = time_str(n_millis)
+    return "ansibrightblack" if s == "?" else "", s

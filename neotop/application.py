@@ -49,10 +49,10 @@ class Neotop(Application):
         self.address = "%s:%s" % (host or "localhost", port or 7687)
         self.user = user or "neo4j"
         self.auth = (self.user, password or "")
-        self.server_windows = [Window(content=ServerControl(self.address, self.auth))]
         self.overview = OverviewControl(self.address, self.auth)
         self.overview_visible = False
         self.overview_window = Window(content=self.overview, dont_extend_width=True)
+        self.server_windows = [Window(content=ServerControl(self.address, self.auth, self.overview.add_highlight()))]
         super(Neotop, self).__init__(
             key_bindings=self.bindings,
             style=self.style,
@@ -77,12 +77,13 @@ class Neotop(Application):
             )
 
     def insert(self, event):
-        if len(self.server_windows) < 4:
+        address_style = self.overview.add_highlight()
+        if address_style is not None:
             selected_address = self.overview.selected_address
             for window in self.server_windows:
                 if window.content.address == selected_address:
                     return
-            self.server_windows.append(Window(content=ServerControl(selected_address, self.auth)))
+            self.server_windows.append(Window(content=ServerControl(selected_address, self.auth, address_style)))
             self.update_layout()
 
     def delete(self, event):
@@ -90,7 +91,9 @@ class Neotop(Application):
             selected_address = self.overview.selected_address
             for window in list(self.server_windows):
                 if window.content.address == selected_address:
+                    window.content.exit()
                     self.server_windows.remove(window)
+                    self.overview.remove_highlight()
             self.update_layout()
 
     @property
