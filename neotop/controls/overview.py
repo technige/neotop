@@ -42,6 +42,7 @@ class OverviewControl(DataControl):
             "fg:ansiwhite bg:ansiyellow",
         }
         self.max_width = 0
+        self.padding = 0
         self.selected_role = u"LEADER"
         self.selected_index = 0
 
@@ -70,23 +71,25 @@ class OverviewControl(DataControl):
                 self.servers[role] = [urlparse(server[u"addresses"][0]).netloc
                                       for server in overview if server[u"role"] == role]
                 widths.extend(map(len, self.servers[role]))
-            self.max_width = max(widths) + 5
+            self.max_width = max(widths)
         else:
             self.servers[u"LEADER"] = [self.address]
-            self.max_width = len(self.address) + 5
+            self.max_width = len(self.address)
+        self.padding = 6 if self.max_width % 2 == 0 else 5
+        self.max_width += self.padding
 
     def create_content(self, width, height):
         lines = []
 
         def append_servers(role):
             for i, address in enumerate(self.servers[role]):
-                address_style = self.address_styles.get(address, "fg:ansiwhite bg:ansiblack")
+                address_style = self.address_styles.get(address, "")
                 if role == self.selected_role and i == self.selected_index:
                     lines.append([
                         ("", " "),
                         (address_style, "  "),
                         ("", " "),
-                        ("fg:ansiblack bg:ansigray", address.ljust(width - 5)),
+                        ("fg:ansiblack bg:ansigray", address.ljust(width - self.padding)),
                         ("", " "),
                     ])
                 else:
@@ -94,23 +97,23 @@ class OverviewControl(DataControl):
                         ("", " "),
                         (address_style, "  "),
                         ("", " "),
-                        ("", address.ljust(width - 5)),
+                        ("", address.ljust(width - self.padding)),
                         ("", " "),
                     ])
 
         if self.servers[u"LEADER"]:
             if self.mode == u"CORE":
-                lines.append([("fg:ansibrightblack", " Leader".ljust(width))])
+                lines.append([("fg:#A0A0A0", " Leader".ljust(width))])
             else:
-                lines.append([("fg:ansibrightblack", " Server".ljust(width))])
+                lines.append([("fg:#A0A0A0", " Server".ljust(width))])
             append_servers(u"LEADER")
             lines.append([])
         if self.servers[u"FOLLOWER"]:
-            lines.append([("fg:ansibrightblack", " Followers".ljust(width))])
+            lines.append([("fg:#A0A0A0", " Followers".ljust(width))])
             append_servers(u"FOLLOWER")
             lines.append([])
         if self.servers[u"READ_REPLICA"]:
-            lines.append([("fg:ansibrightblack", " Read replicas".ljust(width))])
+            lines.append([("fg:#A0A0A0", " Read replicas".ljust(width))])
             append_servers(u"READ_REPLICA")
             lines.append([])
 
@@ -162,7 +165,10 @@ class OverviewControl(DataControl):
     def end(self, event):
         if not self.servers[self.selected_role]:
             return False
-        selected_role = self.server_roles[-1]
+        y = -1
+        while not self.servers[self.server_roles[y]]:
+            y -= 1
+        selected_role = self.server_roles[y]
         selected_index = len(self.servers[self.selected_role]) - 1
         if selected_role != self.selected_role or selected_index != self.selected_index:
             self.selected_role = selected_role

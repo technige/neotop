@@ -166,6 +166,36 @@ class ServerControl(DataControl):
             ])
         self.title.append(("fg:ansiblack bg:ansigray", title))
 
+
+    """
+    Unhandled exception in event loop:
+      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/eventloop/posix.py", line 154, in _run_task
+        t()
+      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/eventloop/context.py", line 115, in new_func
+        return func(*a, **kw)
+      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/application/application.py", line 368, in redraw
+        self._redraw()
+      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/application/application.py", line 436, in _redraw
+        self.renderer.render(self, self.layout)
+      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/renderer.py", line 545, in render
+        ), parent_style='', erase_bg=False, z_index=None)
+      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/layout/containers.py", line 547, in write_to_screen
+        erase_bg, z_index)
+      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/layout/containers.py", line 288, in write_to_screen
+        erase_bg, z_index)
+      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/layout/containers.py", line 1392, in write_to_screen
+        draw_func()
+      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/layout/containers.py", line 1433, in _write_to_screen_at_index
+        align=align)
+      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/layout/containers.py", line 1643, in _copy_body
+        copy()
+      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/layout/containers.py", line 1570, in copy
+        line = ui_content.get_line(lineno)
+      File "/home/technige/work/neotop/neotop/controls/server.py", line 180, in get_line
+        for x, (style, cell) in enumerate(self.lines[y]):
+    
+    Exception list index out of range
+    """
     def create_content(self, width, height):
         widths = self.widths()
         used_width = sum(widths)

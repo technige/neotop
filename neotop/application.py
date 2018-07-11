@@ -25,7 +25,8 @@ from os import getenv
 from prompt_toolkit.application import Application
 from prompt_toolkit.application.current import get_app
 from prompt_toolkit.key_binding import KeyBindings
-from prompt_toolkit.layout.containers import Window, VSplit, HSplit
+from prompt_toolkit.layout import FormattedTextControl
+from prompt_toolkit.layout.containers import Window, VSplit, HSplit, WindowAlign
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.styles import Style
 from prompt_toolkit.widgets import Frame
@@ -51,8 +52,10 @@ class Neotop(Application):
         self.auth = (self.user, password or "")
         self.overview = OverviewControl(self.address, self.auth)
         self.overview_visible = False
-        self.overview_window = Window(content=self.overview, dont_extend_width=True)
+        self.overview_window = Window(content=self.overview, dont_extend_width=True, style="bg:#202020")
         self.server_windows = [Window(content=ServerControl(self.address, self.auth, self.overview.add_highlight()))]
+        self.help_bar = Window(content=FormattedTextControl(text="[Ctrl+C] Exit  [F12] Overview"),
+                               height=1, dont_extend_height=True, style="bg:ansibrightblack fg:ansiwhite")
         super(Neotop, self).__init__(
             key_bindings=self.bindings,
             style=self.style,
@@ -66,14 +69,19 @@ class Neotop(Application):
         if self.overview_visible:
             self.layout = Layout(
                 VSplit([
-                    HSplit(self.server_windows),
-                    Frame(self.overview_window),
+                    HSplit(self.server_windows + [self.help_bar]),
+                    HSplit([
+                        self.overview_window,
+                        Window(FormattedTextControl(text="[Ins ][Home][PgUp]\n[Del ][End ][PgDn]"),
+                               style="bg:#202020 fg:ansigray", height=2, align=WindowAlign.CENTER,
+                               dont_extend_height=True),
+                    ]),
                 ]),
             )
         else:
             self.layout = Layout(
                 VSplit([
-                    HSplit(self.server_windows),
+                    HSplit(self.server_windows + [self.help_bar]),
                 ]),
             )
 
@@ -105,13 +113,18 @@ class Neotop(Application):
         bindings.add('m')(self.action(self.server_windows[0].content.set_payload_key, "metaData"))
         bindings.add('p')(self.action(self.server_windows[0].content.set_payload_key, "parameters"))
         bindings.add('q')(self.action(self.server_windows[0].content.set_payload_key, "query"))
+
         bindings.add('f12')(self.toggle_overview)
+        bindings.add('c-o')(self.toggle_overview)
         bindings.add('insert')(self.action(self.insert))
+        bindings.add('+')(self.action(self.insert))
         bindings.add('delete')(self.action(self.delete))
+        bindings.add('-')(self.action(self.delete))
         bindings.add('home')(self.action(self.overview.home))
         bindings.add('end')(self.action(self.overview.end))
         bindings.add('pageup')(self.action(self.overview.page_up))
         bindings.add('pagedown')(self.action(self.overview.page_down))
+
         return bindings
 
     def action(self, handler, *args, **kwargs):

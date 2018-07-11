@@ -19,12 +19,21 @@
 import click
 
 
-@click.command()
+@click.command(help="""\
+Monitor Neo4j servers and clusters.
+
+The ADDRESS should be supplied in either host:port format or as a simple host name or IP address.
+If the port is omitted, 7687 is assumed.
+""")
 @click.option("-u", "--user",
-              envvar="NEO4J_USER")
+              metavar="USER",
+              envvar="NEO4J_USER",
+              help="Neo4j user name (can also be supplied in NEO4J_USER environment variable)")
 @click.option("-p", "--password",
+              metavar="PASSWORD",
               envvar="NEO4J_PASSWORD",
               prompt="Neo4j password",
+              help="Neo4j password (can also be supplied in NEO4J_PASSWORD environment variable)",
               confirmation_prompt=False,
               hide_input=True)
 @click.argument("address",
