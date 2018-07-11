@@ -49,6 +49,9 @@ class OverviewControl(DataControl):
         return self.max_width
 
     def fetch_data(self, tx):
+        if self.edition != "enterprise":
+            # print("Neotop requires Neo4j Enterprise Edition (%s Edition found)" % self.edition.title())
+            return
         try:
             config = {}
             for record in tx.run("CALL dbms.listConfig"):

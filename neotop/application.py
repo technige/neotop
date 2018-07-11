@@ -60,6 +60,7 @@ class Neotop(Application):
             full_screen=True,
         )
         self.update_layout()
+        self.overview.start()
 
     def update_layout(self):
         if self.overview_visible:

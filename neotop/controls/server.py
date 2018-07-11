@@ -70,6 +70,7 @@ class ServerControl(DataControl):
         self.queries = None
         self.status_style = status_style
         self.header_style = "fg:ansiwhite bg:ansibrightblack"
+        self.start()
 
     def set_payload_key(self, event, key):
         self.payload_key = key
@@ -97,6 +98,9 @@ class ServerControl(DataControl):
         return widths
 
     def fetch_data(self, tx):
+        if self.edition != "enterprise":
+            self.on_fetch_error(RuntimeError("Neotop requires Neo4j Enterprise Edition (%s Edition found)" % self.edition.title()))
+            return
         config_result = tx.run("CALL dbms.queryJmx('org.neo4j:*')")
         queries_result = tx.run("CALL dbms.listQueries")
         self.config = Config(config_result.data())
@@ -104,12 +108,12 @@ class ServerControl(DataControl):
         self.update_content()
 
     def on_fetch_error(self, error):
-        self.title[:] = [("bg:ansired", "  "), ("fg:ansiblack bg:ansigray", " ")]
+        self.title[:] = [("fg:ansiwhite bg:ansired", "  "), ("fg:ansiwhite bg:ansired", " ")]
         self.clear()
         self.set_fields([])
         self.set_alignments([])
         title = "{} down -- {}".format(self.address, error)
-        self.title.append(("", title))
+        self.title.append(("fg:ansiwhite bg:ansired", title))
 
     def update_content(self):
         self.title[:] = [(self.status_style, "  "), ("fg:ansiblack bg:ansigray", " ")]

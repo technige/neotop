@@ -31,12 +31,24 @@ class DataControl(UIControl):
         self._uri = "bolt://{}".format(self.address)
         self._auth = auth
         self._driver = None
-        self._running = True
+        self._running = False
         self._invalidated = False
         self._refresh_period = 1.0
         self._refresh_thread = Thread(target=self.loop)
         self._on_fresh_data = Event(self)
+        self._edition = self.work(lambda tx: tx.run("CALL dbms.components").value("edition")[0])
+
+    @property
+    def edition(self):
+        return self._edition
+
+    def start(self):
+        self._running = True
         self._refresh_thread.start()
+
+    def stop(self):
+        self._running = False
+        self._refresh_thread.join()
 
     @property
     def address(self):
@@ -46,15 +58,18 @@ class DataControl(UIControl):
     def up(self):
         return bool(self._driver)
 
-    def work(self, unit, on_error):
+    def work(self, unit, on_error=None):
         try:
             if not self._driver:
                 self._driver = GraphDatabase.driver(self._uri, auth=self._auth, max_retry_time=1.0)
             with self._driver.session(READ_ACCESS) as session:
-                session.read_transaction(unit)
+                return session.read_transaction(unit)
         except (CypherError, ServiceUnavailable) as error:
             self._driver = None
-            on_error(error)
+            if callable(on_error):
+                on_error(error)
+            else:
+                raise
 
     def loop(self):
         while self._running:
@@ -71,8 +86,7 @@ class DataControl(UIControl):
         self._invalidated = True
 
     def exit(self):
-        self._running = False
-        self._refresh_thread.join()
+        self.stop()
         if self._driver:
             self._driver.close()
 
