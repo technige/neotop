@@ -19,7 +19,7 @@
 from threading import Thread
 from time import sleep
 
-from neo4j.v1 import GraphDatabase, ServiceUnavailable, READ_ACCESS
+from neo4j.v1 import GraphDatabase, CypherError, ServiceUnavailable, READ_ACCESS
 from prompt_toolkit.layout import UIControl
 from prompt_toolkit.utils import Event
 
@@ -31,7 +31,6 @@ class DataControl(UIControl):
         self._uri = "bolt://{}".format(self.address)
         self._auth = auth
         self._driver = None
-        self._error = None
         self._running = True
         self._invalidated = False
         self._refresh_period = 1.0
@@ -51,14 +50,12 @@ class DataControl(UIControl):
         while self._running:
             try:
                 if not self._driver:
-                    self._driver = GraphDatabase.driver(self._uri, auth=self._auth)
+                    self._driver = GraphDatabase.driver(self._uri, auth=self._auth, max_retry_time=1.0)
                 with self._driver.session(READ_ACCESS) as session:
                     session.read_transaction(self.fetch_data)
-            except ServiceUnavailable as error:
+            except (CypherError, ServiceUnavailable) as error:
                 self._driver = None
-                self._error = error
-            else:
-                self._error = None
+                self.on_fetch_error(error)
             self._on_fresh_data.fire()
             self._invalidated = False
             for _ in range(int(10 * self._refresh_period)):
@@ -85,6 +82,13 @@ class DataControl(UIControl):
     def fetch_data(self, tx):
         """ Retrieve data from database.
 
+        :return:
+        """
+
+    def on_fetch_error(self, error):
+        """ Raised if an error occurs while fetching data.
+
+        :param error:
         :return:
         """
 

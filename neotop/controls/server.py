@@ -126,62 +126,65 @@ class ServerControl(DataControl):
         self.queries = queries_result.data()
         self.update_content()
 
+    def on_fetch_error(self, error):
+        self.title[:] = []
+        self.clear()
+        self.set_fields([])
+        self.set_alignments([])
+        title = "{} down -- {}".format(self.address, error)
+        self.set_title_style("fg:ansiwhite bg:ansired")
+        self.title.append(("", title))
+
     def update_content(self):
         self.title[:] = []
         self.clear()
-        if self.up:
-            self.set_fields(DEFAULT_FIELDS)
-            self.set_alignments(DEFAULT_ALIGNMENTS)
-            k0 = self.config.instances[u"kernel#0"]
-            title = ("{address} up {uptime}, "
-                     "{major}.{minor}.{patch} "
-                     "tx(b={begun} c={committed} r={rolled_back} hi={peak}) "
-                     "store={store_size}").format(
-                mode=k0.configuration[u"dbms.mode"][0],
-                address=self.address,
-                uptime=k0.kernel.uptime,
-                store_size=number_string(k0.store_sizes[u"TotalStoreSize"], K=1024),
-                product=k0.kernel.product_info[0],
-                major=k0.kernel.product_info[1],
-                minor=k0.kernel.product_info[2],
-                patch=k0.kernel.product_info[3],
-                begun=number_string(k0.transactions[u"NumberOfOpenedTransactions"]),
-                committed=number_string(k0.transactions[u"NumberOfCommittedTransactions"]),
-                rolled_back=number_string(k0.transactions[u"NumberOfRolledBackTransactions"]),
-                peak=number_string(k0.transactions[u"PeakNumberOfConcurrentTransactions"]),
-            )
-            self.lines[1][-1] = ("", self.payload_key.upper())
-            for q in sorted(self.queries, key=lambda q0: q0["elapsedTimeMillis"], reverse=True):
-                q["queryId"] = q["queryId"].partition("-")[-1]
-                q["query"] = q["query"].replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
-                client = "{}/{}".format(q["protocol"][0].upper(), q["clientAddress"])
-                if q["status"] == "running":
-                    payload_style = "fg:ansigreen"
-                elif q["status"] == "planning":
-                    payload_style = "fg:ansiblue"
-                else:
-                    print(q["status"])
-                    payload_style = ""
-                self.append([
-                    ("", q["queryId"]),
-                    ("fg:ansibrightblack" if q["username"] == "neo4j" else "", q["username"]),
-                    ("", client),
-                    ("", number_string(q["allocatedBytes"], K=1024)),
-                    ("", number_string(q["activeLockCount"])),
-                    ("", number_string(q["pageHits"])),
-                    ("", number_string(q["pageFaults"])),
-                    ("", time_str(q["elapsedTimeMillis"])),
-                    ("", time_str(q["cpuTimeMillis"])),
-                    ("", time_str(q["waitTimeMillis"])),
-                    ("", time_str(q["idleTimeMillis"])),
-                    (payload_style, q[self.payload_key]),
-                ])
-            self.set_title_style(mode_styles[k0.configuration[u"dbms.mode"]])
-        else:
-            self.set_fields([])
-            self.set_alignments([])
-            title = "{} down".format(self.address)
-            self.set_title_style("fg:ansiwhite bg:ansired")
+        self.set_fields(DEFAULT_FIELDS)
+        self.set_alignments(DEFAULT_ALIGNMENTS)
+        k0 = self.config.instances[u"kernel#0"]
+        title = ("{address} up {uptime}, "
+                 "{major}.{minor}.{patch} "
+                 "tx(b={begun} c={committed} r={rolled_back} hi={peak}) "
+                 "store={store_size}").format(
+            mode=k0.configuration[u"dbms.mode"][0],
+            address=self.address,
+            uptime=k0.kernel.uptime,
+            store_size=number_string(k0.store_sizes[u"TotalStoreSize"], K=1024),
+            product=k0.kernel.product_info[0],
+            major=k0.kernel.product_info[1],
+            minor=k0.kernel.product_info[2],
+            patch=k0.kernel.product_info[3],
+            begun=number_string(k0.transactions[u"NumberOfOpenedTransactions"]),
+            committed=number_string(k0.transactions[u"NumberOfCommittedTransactions"]),
+            rolled_back=number_string(k0.transactions[u"NumberOfRolledBackTransactions"]),
+            peak=number_string(k0.transactions[u"PeakNumberOfConcurrentTransactions"]),
+        )
+        self.lines[1][-1] = ("", self.payload_key.upper())
+        for q in sorted(self.queries, key=lambda q0: q0["elapsedTimeMillis"], reverse=True):
+            q["queryId"] = q["queryId"].partition("-")[-1]
+            q["query"] = q["query"].replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
+            client = "{}/{}".format(q["protocol"][0].upper(), q["clientAddress"])
+            if q["status"] == "running":
+                payload_style = "fg:ansigreen"
+            elif q["status"] == "planning":
+                payload_style = "fg:ansiblue"
+            else:
+                print(q["status"])
+                payload_style = ""
+            self.append([
+                ("", q["queryId"]),
+                ("fg:ansibrightblack" if q["username"] == "neo4j" else "", q["username"]),
+                ("", client),
+                ("", number_string(q["allocatedBytes"], K=1024)),
+                ("", number_string(q["activeLockCount"])),
+                ("", number_string(q["pageHits"])),
+                ("", number_string(q["pageFaults"])),
+                ("", time_str(q["elapsedTimeMillis"])),
+                ("", time_str(q["cpuTimeMillis"])),
+                ("", time_str(q["waitTimeMillis"])),
+                ("", time_str(q["idleTimeMillis"])),
+                (payload_style, q[self.payload_key]),
+            ])
+        self.set_title_style(mode_styles[k0.configuration[u"dbms.mode"]])
         self.title.append(("", title))
 
     def create_content(self, width, height):
