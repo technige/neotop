@@ -207,17 +207,22 @@ class ServerControl(DataControl):
                 return [(style, cell) for style, cell in self.lines[y]] + \
                        [("fg:ansiblack bg:ansigray", " " * (width - u_width))]
             line = []
-            for x, (style, cell) in enumerate(self.lines[y]):
-                if y == 1:
-                    style = self.header_style
-                if x > 0:
-                    line.append((style, " "))
-                alignment = self.alignments[x]
-                cell_width = widths[x]
-                if alignment == ">":
-                    line.append((style, cell.rjust(cell_width)))
-                else:
-                    line.append((style, cell.ljust(cell_width)))
+            try:
+                li = self.lines[y]
+            except IndexError:
+                pass
+            else:
+                for x, (style, cell) in enumerate(li):
+                    if y == 1:
+                        style = self.header_style
+                    if x > 0:
+                        line.append((style, " "))
+                    alignment = self.alignments[x]
+                    cell_width = widths[x]
+                    if alignment == ">":
+                        line.append((style, cell.rjust(cell_width)))
+                    else:
+                        line.append((style, cell.ljust(cell_width)))
             return line
 
         return UIContent(
