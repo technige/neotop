@@ -32,7 +32,6 @@ class DataControl(UIControl):
         self._auth = auth
         self._driver = None
         self._running = False
-        self._invalidated = False
         self._refresh_period = 1.0
         self._refresh_thread = Thread(target=self.loop)
         self._on_fresh_data = Event(self)
@@ -75,15 +74,11 @@ class DataControl(UIControl):
         while self._running:
             self.work(self.fetch_data, self.on_fetch_error)
             self._on_fresh_data.fire()
-            self._invalidated = False
             for _ in range(int(10 * self._refresh_period)):
-                if self._running and not self._invalidated:
+                if self._running:
                     sleep(0.1)
                 else:
                     break
-
-    def invalidate(self):
-        self._invalidated = True
 
     def exit(self):
         self.stop()

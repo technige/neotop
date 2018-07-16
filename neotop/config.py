@@ -110,7 +110,7 @@ def main():
      u'org.neo4j:instance=kernel#0,name=Configuration',
      u'org.neo4j:instance=kernel#0,name=Diagnostics',
      u'org.neo4j:instance=kernel#0,name=Page cache',
-     u'org.neo4j:instance=kernel#0,name=Memory Mapping',
+     u'org.neo4j:instance=kernel#0,name=BytesAmount Mapping',
      u'org.neo4j:instance=kernel#0,name=Store sizes',
      u'org.neo4j:instance=kernel#0,name=Index sampler',
      u'org.neo4j:instance=kernel#0,name=Primitive count']

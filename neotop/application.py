@@ -29,7 +29,6 @@ from prompt_toolkit.layout import FormattedTextControl
 from prompt_toolkit.layout.containers import Window, VSplit, HSplit, WindowAlign
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.styles import Style
-from prompt_toolkit.widgets import Frame
 
 from neotop.controls.overview import OverviewControl
 from neotop.controls.server import ServerControl
@@ -114,8 +113,8 @@ class Neotop(Application):
         bindings.add('p')(self.action(self.server_windows[0].content.set_payload_key, "parameters"))
         bindings.add('q')(self.action(self.server_windows[0].content.set_payload_key, "query"))
 
+        bindings.add('0')(self.toggle_overview)
         bindings.add('f12')(self.toggle_overview)
-        bindings.add('c-o')(self.toggle_overview)
         bindings.add('insert')(self.action(self.insert))
         bindings.add('+')(self.action(self.insert))
         bindings.add('delete')(self.action(self.delete))

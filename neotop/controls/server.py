@@ -18,11 +18,10 @@
 
 from __future__ import unicode_literals
 
-from prompt_toolkit.layout import UIContent
+from prompt_toolkit.layout import UIContent, UIControl
+from prompt_toolkit.utils import Event
 
-from neotop.config import Config
-from neotop.controls.data import DataControl
-from neotop.units import number_string, number_text, time_text
+from neotop.monitor import ServerMonitor
 
 
 DEFAULT_FIELDS = [
@@ -55,22 +54,28 @@ DEFAULT_ALIGNMENTS = [
 ]
 
 
-class ServerControl(DataControl):
+class ServerControl(UIControl):
+
+    data = None
 
     def __init__(self, address, auth, status_style):
-        super(ServerControl, self).__init__(address, auth)
+        self.address = address
         self.title = []
         self.lines = [
             self.title,
             [("", "")],
         ]
         self.alignments = ["<"]
-        self.payload_key = "query"
-        self.config = None
-        self.queries = None
+        self.payload_key = "text"
         self.status_style = status_style
         self.header_style = "fg:ansiwhite bg:ansibrightblack"
-        self.start()
+        self.monitor = ServerMonitor(address, auth, on_error=self.set_error)     # TODO: display errors
+        self.monitor.add_refresh_handler(self.on_refresh)
+        self.invalidate = Event(self)
+        self.error = None
+
+    def set_error(self, error):
+        self.error = error
 
     def set_payload_key(self, event, key):
         self.payload_key = key
@@ -97,115 +102,75 @@ class ServerControl(DataControl):
                     widths[x] = size
         return widths
 
-    def fetch_data(self, tx):
-        if self.edition != "enterprise":
-            self.on_fetch_error(RuntimeError("Neotop requires Neo4j Enterprise Edition (%s Edition found)" % self.edition.title()))
+    def on_refresh(self, data):
+        self.data = data
+        if self.data is None:
+            self.invalidate.fire()
             return
-        config_result = tx.run("CALL dbms.queryJmx('org.neo4j:*')")
-        queries_result = tx.run("CALL dbms.listQueries")
-        self.config = Config(config_result.data())
-        self.queries = queries_result.data()
-        self.update_content()
-
-    def on_fetch_error(self, error):
-        self.title[:] = [("fg:ansiwhite bg:ansired", "  "), ("fg:ansiwhite bg:ansired", " ")]
-        self.clear()
-        self.set_fields([])
-        self.set_alignments([])
-        title = "{} down -- {}".format(self.address, error)
-        self.title.append(("fg:ansiwhite bg:ansired", title))
-
-    def update_content(self):
         self.title[:] = [(self.status_style, "  "), ("fg:ansiblack bg:ansigray", " ")]
         self.clear()
         self.set_fields(DEFAULT_FIELDS)
         self.set_alignments(DEFAULT_ALIGNMENTS)
-        k0 = self.config.instances[u"kernel#0"]
-        title = ("{address} up {uptime}, "
-                 "{major}.{minor}.{patch} "
-                 "tx(b={begun} c={committed} r={rolled_back} hi={peak}) "
-                 "store={store_size}").format(
-            mode=k0.configuration[u"dbms.mode"][0],
-            address=self.address,
-            uptime=k0.kernel.uptime,
-            store_size=number_string(k0.store_sizes[u"TotalStoreSize"], K=1024),
-            product=k0.kernel.product_info[0],
-            major=k0.kernel.product_info[1],
-            minor=k0.kernel.product_info[2],
-            patch=k0.kernel.product_info[3],
-            begun=number_string(k0.transactions[u"NumberOfOpenedTransactions"]),
-            committed=number_string(k0.transactions[u"NumberOfCommittedTransactions"]),
-            rolled_back=number_string(k0.transactions[u"NumberOfRolledBackTransactions"]),
-            peak=number_string(k0.transactions[u"PeakNumberOfConcurrentTransactions"]),
-        )
+        title = str(self.data.system)
         self.lines[1][-1] = ("", self.payload_key.upper())
-        for q in sorted(self.queries, key=lambda q0: q0["elapsedTimeMillis"], reverse=True):
-            q["queryId"] = q["queryId"].partition("-")[-1]
-            q["query"] = q["query"].replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
-            client = "{}/{}".format(q["protocol"][0].upper(), q["clientAddress"])
-            if q["status"] == "running":
+        for q in sorted(self.data.queries, key=lambda q0: q0.elapsed_time, reverse=True):
+            # q["queryId"] = q["queryId"].partition("-")[-1]
+            q.text = q.text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
+            client = "{}/{}".format(q.protocol[0].upper(), q.client_address)
+            if q.status == "running":
                 payload_style = "fg:ansigreen"
-            elif q["status"] == "planning":
+            elif q.status == "planning":
                 payload_style = "fg:ansiblue"
             else:
-                print(q["status"])
+                print(q.status)
                 payload_style = ""
             self.append([
-                ("", q["queryId"]),
-                ("fg:ansibrightblack" if q["username"] == "neo4j" else "", q["username"]),
+                ("", q.id),
+                ("fg:ansibrightblack" if q.user == "neo4j" else "", q.user),
                 ("", client),
-                number_text(q["allocatedBytes"], K=1024),
-                number_text(q["activeLockCount"]),
-                number_text(q["pageHits"]),
-                number_text(q["pageFaults"]),
-                time_text(q["elapsedTimeMillis"]),
-                time_text(q["cpuTimeMillis"]),
-                time_text(q["waitTimeMillis"]),
-                time_text(q["idleTimeMillis"]),
-                (payload_style, q[self.payload_key]),
+                ("", q.allocated_bytes),
+                ("", q.active_lock_count),
+                ("", q.page_hits),
+                ("", q.page_faults),
+                ("", q.elapsed_time),
+                ("", q.cpu_time),
+                ("", q.wait_time),
+                ("", q.idle_time),
+                (payload_style, getattr(q, self.payload_key)),
             ])
         self.title.append(("fg:ansiblack bg:ansigray", title))
+        self.invalidate.fire()
 
+    def get_invalidate_events(self):
+        """
+        Return the Window invalidate events.
+        """
+        yield self.invalidate
 
-    """
-    Unhandled exception in event loop:
-      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/eventloop/posix.py", line 154, in _run_task
-        t()
-      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/eventloop/context.py", line 115, in new_func
-        return func(*a, **kw)
-      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/application/application.py", line 368, in redraw
-        self._redraw()
-      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/application/application.py", line 436, in _redraw
-        self.renderer.render(self, self.layout)
-      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/renderer.py", line 545, in render
-        ), parent_style='', erase_bg=False, z_index=None)
-      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/layout/containers.py", line 547, in write_to_screen
-        erase_bg, z_index)
-      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/layout/containers.py", line 288, in write_to_screen
-        erase_bg, z_index)
-      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/layout/containers.py", line 1392, in write_to_screen
-        draw_func()
-      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/layout/containers.py", line 1433, in _write_to_screen_at_index
-        align=align)
-      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/layout/containers.py", line 1643, in _copy_body
-        copy()
-      File "/home/technige/.virtualenvs/neotop/lib/python3.6/site-packages/prompt_toolkit/layout/containers.py", line 1570, in copy
-        line = ui_content.get_line(lineno)
-      File "/home/technige/work/neotop/neotop/controls/server.py", line 180, in get_line
-        for x, (style, cell) in enumerate(self.lines[y]):
-    
-    Exception list index out of range
-    """
     def create_content(self, width, height):
         widths = self.widths()
         used_width = sum(widths)
         widths[-1] += width - used_width
 
+        def get_status_line():
+            if self.data:
+                status_text = (" {} {}".format(self.address, self.data.system.status_text()))
+                # status_text += ", tx={}".format(self.data.transactions.begin_count)
+                # status_text += ", store={}".format(self.data.storage.total_store_size)
+                status_text += "  " + self.data.system.cpu_meter(10)
+                # status_text += "  " + self.data.memory.ram_meter(10)  TODO
+                style = "fg:ansiblack bg:ansigray"
+            else:
+                status_text = " {} unavailable -- {}".format(self.address, self.error)
+                style = "fg:ansiwhite bg:ansired"
+            return [
+                (self.status_style, "  "),
+                (style, status_text.ljust(width - 2)),
+            ]
+
         def get_line(y):
             if y == 0:
-                u_width = sum(len(cell) for style, cell in self.lines[y])
-                return [(style, cell) for style, cell in self.lines[y]] + \
-                       [("fg:ansiblack bg:ansigray", " " * (width - u_width))]
+                return get_status_line()
             line = []
             try:
                 li = self.lines[y]
@@ -230,3 +195,6 @@ class ServerControl(DataControl):
             line_count=len(self.lines),
             show_cursor=False,
         )
+
+    def exit(self):
+        self.monitor.exit()
