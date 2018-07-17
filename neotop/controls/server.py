@@ -69,6 +69,7 @@ class ServerControl(UIControl):
         self.payload_key = "text"
         self.status_style = status_style
         self.header_style = "fg:ansiwhite bg:ansibrightblack"
+
         self.monitor = ServerMonitor(address, auth, on_error=self.set_error)     # TODO: display errors
         self.monitor.add_refresh_handler(self.on_refresh)
         self.invalidate = Event(self)
@@ -154,11 +155,11 @@ class ServerControl(UIControl):
 
         def get_status_line():
             if self.data:
-                status_text = (" {} {}".format(self.address, self.data.system.status_text()))
+                status_text = " {} {}".format(self.address, self.data.system.status_text())
                 # status_text += ", tx={}".format(self.data.transactions.begin_count)
                 # status_text += ", store={}".format(self.data.storage.total_store_size)
-                status_text += "  " + self.data.system.cpu_meter(10)
-                # status_text += "  " + self.data.memory.ram_meter(10)  TODO
+                meters = self.data.memory.heap_meter(10) + " " + self.data.system.cpu_meter(10)
+                status_text = status_text.ljust(76 - len(meters)) + "  " + meters
                 style = "fg:ansiblack bg:ansigray"
             else:
                 status_text = " {} unavailable -- {}".format(self.address, self.error)

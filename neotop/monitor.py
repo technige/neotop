@@ -94,9 +94,9 @@ class SystemData(object):
                     dbms_uptime=self.dbms.uptime))
 
     def cpu_meter(self, size):
-        p_load = int(round(size * self.process_cpu_load.value))
-        s_load = int(round(size * (self.system_cpu_load.value - self.process_cpu_load.value)))
-        return "CPU [{}]".format((":" * p_load + "." * s_load).ljust(size))
+        process_load = int(round(size * self.process_cpu_load.value))
+        system_load = int(round(size * self.system_cpu_load.value))
+        return "CPU [{}]".format((":" * process_load).ljust(system_load, ".").ljust(size))
 
 
 class MemoryData(object):
@@ -130,13 +130,13 @@ class MemoryData(object):
                 s.append("    %s: %r" % (attr, getattr(self, attr)))
         return "\n".join(s)
 
-    def ram_meter(self, size):
-        java_bytes_used = self.committed_heap_memory_size.value + self.committed_non_heap_memory_size.value
-        other_bytes_used = self.total_physical_memory_size.value - self.free_physical_memory_size.value - java_bytes_used
-        unit = self.total_physical_memory_size.value / size
-        java_units_used = int(round(java_bytes_used / unit))
-        other_units_used = int(round(other_bytes_used / unit))
-        return "RAM [{}]".format((":" * java_units_used + "." * other_units_used).ljust(size))
+    def heap_meter(self, size):
+        bytes_used = self.used_heap_memory_size.value
+        bytes_committed = self.committed_heap_memory_size.value
+        unit = self.max_heap_memory_size.value / size
+        units_used = int(round(bytes_used / unit))
+        units_committed = int(round(bytes_committed / unit))
+        return "{} heap [{}]".format(self.max_heap_memory_size, (":" * units_used).ljust(units_committed, ".").ljust(size))
 
 
 class StorageData(object):

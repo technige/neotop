@@ -31,7 +31,7 @@ def run_match():
 
 
 def main():
-    for _ in range(200):
+    for _ in range(50):
         Thread(target=run_match, daemon=True).start()
     while True:
         with driver.session() as session:
