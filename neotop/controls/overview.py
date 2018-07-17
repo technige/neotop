@@ -49,35 +49,6 @@ class OverviewControl(DataControl):
     def preferred_width(self, max_available_width):
         return self.max_width
 
-    # def fetch_data(self, tx):
-    #     if self.edition != "enterprise":
-    #         # print("Neotop requires Neo4j Enterprise Edition (%s Edition found)" % self.edition.title())
-    #         return
-    #     try:
-    #         config = {}
-    #         for record in tx.run("CALL dbms.listConfig"):
-    #             config[record["name"]] = record["value"]
-    #     except CypherError as error:
-    #         if error.code == "Neo.ClientError.Security.Forbidden":
-    #             self.mode = u"UNKNOWN"
-    #         else:
-    #             raise
-    #     else:
-    #         self.mode = config[u"dbms.mode"]
-    #     if self.mode == u"CORE":
-    #         overview = tx.run("CALL dbms.cluster.overview").data()
-    #         widths = [0]
-    #         for role in self.servers:
-    #             self.servers[role] = [urlparse(server[u"addresses"][0]).netloc
-    #                                   for server in overview if server[u"role"] == role]
-    #             widths.extend(map(len, self.servers[role]))
-    #         self.max_width = max(widths)
-    #     else:
-    #         self.servers[u"LEADER"] = [self.address]
-    #         self.max_width = len(self.address)
-    #     self.padding = 6 if self.max_width % 2 == 0 else 5
-    #     self.max_width += self.padding
-
     def on_refresh(self, data):
         self.mode = data.system.dbms.mode
         if self.mode == u"CORE":
