@@ -73,7 +73,7 @@ class SystemData(object):
             self.dbms = Product(dbms_component_name,
                                 dbms_component[u"versions"][0],
                                 edition=self._editions[dbms_component[u"edition"]],
-                                mode=dbms_config.get(u"dbms.mode", u"S")[0],
+                                mode=dbms_config.get(u"dbms.mode", u"SINGLE"),
                                 uptime=(Time(ms=(t1 - t0))))
 
     def __repr__(self):
@@ -126,17 +126,17 @@ class MemoryData(object):
     def __repr__(self):
         s = ["Memory:"]
         for attr in sorted(dir(self)):
-            if not attr.startswith("_"):
+            if attr.endswith("size"):
                 s.append("    %s: %r" % (attr, getattr(self, attr)))
         return "\n".join(s)
 
     def heap_meter(self, size):
+        unit = self.committed_heap_memory_size.value / size
         bytes_used = self.used_heap_memory_size.value
-        bytes_committed = self.committed_heap_memory_size.value
-        unit = self.max_heap_memory_size.value / size
+        # bytes_committed = self.committed_heap_memory_size.value
         units_used = int(round(bytes_used / unit))
-        units_committed = int(round(bytes_committed / unit))
-        return "{} heap [{}]".format(self.max_heap_memory_size, (":" * units_used).ljust(units_committed, ".").ljust(size))
+        # units_committed = int(round(bytes_committed / unit))
+        return "{} heap [{}]".format(self.committed_heap_memory_size, (":" * units_used).ljust(size))
 
 
 class StorageData(object):
@@ -376,7 +376,7 @@ class ServerData(object):
 
     @property
     def cluster(self):
-        return self.system.dbms.mode == u"C"
+        return self.system.dbms.mode == u"CORE"
 
 
 class ServerMonitor(object):
@@ -384,48 +384,51 @@ class ServerMonitor(object):
     __lock = Lock()
     __instances = {}
 
-    def __new__(cls, address, *args, **kwargs):
+    _address = None
+    _uri = None
+    _auth = None
+    _driver = None
+    _running = None
+    _refresh_period = None
+    _refresh_thread = None
+    _on_refresh = None
+    _on_error = None
+    _lock = None
+    _data = None
+
+    def __new__(cls, address, auth, on_error=None):
         with cls.__lock:
             if address not in cls.__instances:
-                cls.__instances[address] = object.__new__(cls)
+                inst = cls.__instances[address] = object.__new__(cls)
+                inst._address = address
+                inst._uri = "bolt://{}".format(inst.address)
+                inst._auth = auth
+                inst._driver = None
+                inst._running = False
+                inst._refresh_period = 1.0
+                inst._refresh_thread = Thread(target=inst.loop)
+                inst._on_refresh = set()
+                inst._on_error = on_error
+                inst._lock = Lock()
+                inst._data = None
             return cls.__instances[address]
 
-    def __init__(self, address, auth, on_error=None):
-        self._address = address
-        self._uri = "bolt://{}".format(self.address)
-        self._auth = auth
-        self._driver = None
-        self._on_error = on_error
-        self._running = False
-        self._refresh_period = 1.0
-        self._refresh_thread = Thread(target=self.loop)
-        self._on_refresh = set()
-        self._lock = Lock()
-        self._data = None
-
-    def get_refresh_handlers(self):
-        for handler in self._on_refresh:
-            yield handler
-
-    def add_refresh_handler(self, event):
+    def attach(self, event):
         with self._lock:
             self._on_refresh.add(event)
             if not self._running:
                 self._running = True
                 self._refresh_thread.start()
 
-    def remove_refresh_handler(self, event):
+    def detach(self, event):
         with self._lock:
             self._on_refresh.remove(event)
-
-    def exit(self):
-        with self._lock:
-            self._on_refresh.clear()
-            if self._running:
+            if not self._on_refresh:
                 self._running = False
                 self._refresh_thread.join()
-        if self._driver:
-            self._driver.close()
+                if self._driver:
+                    self._driver.close()
+                del self.__instances[self.address]
 
     def loop(self):
         while self._running:
@@ -491,17 +494,17 @@ class ServerMonitor(object):
             data.queries = QueryListData(
                 tx.run("CALL dbms.listQueries").data())
 
-            # TODO: detect dbms.listTransactions (only available in 3.4+)
-            try:
-                transactions = tx.run("CALL dbms.listTransactions").data()
-            except CypherError as error:
-                if error.code.endswith("ProcedureNotFound"):
-                    transactions = None
-                else:
-                    raise
-            data.transactions = TransactionListData(
-                transactions,
-                self._extract_jmx(jmx, u"org.neo4j:instance=kernel#0,name=Transactions"))
+            # # TODO: detect dbms.listTransactions (only available in 3.4+)
+            # try:
+            #     transactions = tx.run("CALL dbms.listTransactions").data()
+            # except CypherError as error:
+            #     if error.code.endswith("ProcedureNotFound"):
+            #         transactions = None
+            #     else:
+            #         raise
+            # data.transactions = TransactionListData(
+            #     transactions,
+            #     self._extract_jmx(jmx, u"org.neo4j:instance=kernel#0,name=Transactions"))
 
             data.page_cache = PageCacheData(
                 self._extract_jmx(jmx, u"org.neo4j:instance=kernel#0,name=Page cache"))
@@ -547,12 +550,12 @@ def print_stats(data):
 
 
 def main():
-    server = ServerMonitor("localhost:7687", auth=("neo4j", "password"))
+    server = ServerMonitor("localhost:17100", auth=("neo4j", "password"))
     try:
-        server.add_refresh_handler(print_stats)
+        server.attach(print_stats)
         sleep(300)
     finally:
-        server.exit()
+        server.detach(print_stats)
 
 
 if __name__ == "__main__":

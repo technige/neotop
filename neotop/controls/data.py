@@ -16,98 +16,31 @@
 # limitations under the License.
 
 
-from threading import Thread
-from time import sleep
-
-from neo4j.v1 import GraphDatabase, CypherError, ServiceUnavailable, READ_ACCESS
 from prompt_toolkit.layout import UIControl
 from prompt_toolkit.utils import Event
+
+from neotop.monitor import ServerMonitor
 
 
 class DataControl(UIControl):
 
     def __init__(self, address, auth):
-        self._address = address
-        self._uri = "bolt://{}".format(self.address)
-        self._auth = auth
-        self._driver = None
-        self._running = False
-        self._refresh_period = 1.0
-        self._refresh_thread = Thread(target=self.loop)
-        self._on_fresh_data = Event(self)
-        self._edition = self.work(lambda tx: tx.run("CALL dbms.components").value("edition")[0])
-
-    @property
-    def edition(self):
-        return self._edition
-
-    def start(self):
-        self._running = True
-        self._refresh_thread.start()
-
-    def stop(self):
-        self._running = False
-        self._refresh_thread.join()
-
-    @property
-    def address(self):
-        return self._address
-
-    @property
-    def up(self):
-        return bool(self._driver)
-
-    def work(self, unit, on_error=None):
-        try:
-            if not self._driver:
-                self._driver = GraphDatabase.driver(self._uri, auth=self._auth, max_retry_time=1.0)
-            with self._driver.session(READ_ACCESS) as session:
-                return session.read_transaction(unit)
-        except (CypherError, ServiceUnavailable) as error:
-            self._driver = None
-            if callable(on_error):
-                on_error(error)
-            else:
-                raise
-
-    def loop(self):
-        while self._running:
-            self.work(self.fetch_data, self.on_fetch_error)
-            self._on_fresh_data.fire()
-            for _ in range(int(10 * self._refresh_period)):
-                if self._running:
-                    sleep(0.1)
-                else:
-                    break
+        self.address = address
+        self.monitor = ServerMonitor(address, auth, on_error=self.on_error)
+        self.monitor.attach(self.on_refresh)
+        self.invalidate = Event(self)
 
     def exit(self):
-        self.stop()
-        if self._driver:
-            self._driver.close()
+        self.monitor.detach(self.on_refresh)
 
-    def get_invalidate_events(self):
-        """
-        Return the Window invalidate events.
-        """
-        yield self._on_fresh_data
+    def on_refresh(self, data):
+        pass
 
-    def fetch_data(self, tx):
-        """ Retrieve data from database.
-
-        :return:
-        """
-
-    def on_fetch_error(self, error):
-        """ Raised if an error occurs while fetching data.
-
-        :param error:
-        :return:
-        """
+    def on_error(self, error):
+        pass
 
     def create_content(self, width, height):
-        """ Generate content.
+        pass
 
-        :param width:
-        :param height:
-        :return:
-        """
+    def get_invalidate_events(self):
+        yield self.invalidate

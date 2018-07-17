@@ -62,7 +62,6 @@ class Neotop(Application):
             full_screen=True,
         )
         self.update_layout()
-        self.overview.start()
 
     def update_layout(self):
         if self.overview_visible:
@@ -108,10 +107,6 @@ class Neotop(Application):
     def bindings(self):
         bindings = KeyBindings()
         bindings.add('c-c')(self.do_exit)
-        bindings.add('i')(self.action(self.server_windows[0].content.set_payload_key, "indexes"))
-        bindings.add('m')(self.action(self.server_windows[0].content.set_payload_key, "metaData"))
-        bindings.add('p')(self.action(self.server_windows[0].content.set_payload_key, "parameters"))
-        bindings.add('q')(self.action(self.server_windows[0].content.set_payload_key, "query"))
 
         bindings.add('0')(self.toggle_overview)
         bindings.add('f12')(self.toggle_overview)

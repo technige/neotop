@@ -18,10 +18,9 @@
 
 from __future__ import unicode_literals
 
-from prompt_toolkit.layout import UIContent, UIControl
-from prompt_toolkit.utils import Event
+from prompt_toolkit.layout import UIContent
 
-from neotop.monitor import ServerMonitor
+from neotop.controls.data import DataControl
 
 
 DEFAULT_FIELDS = [
@@ -54,33 +53,21 @@ DEFAULT_ALIGNMENTS = [
 ]
 
 
-class ServerControl(UIControl):
+class ServerControl(DataControl):
 
     data = None
 
     def __init__(self, address, auth, status_style):
-        self.address = address
+        super(ServerControl, self).__init__(address, auth)
         self.title = []
         self.lines = [
             self.title,
             [("", "")],
         ]
         self.alignments = ["<"]
-        self.payload_key = "text"
         self.status_style = status_style
         self.header_style = "fg:ansiwhite bg:ansibrightblack"
-
-        self.monitor = ServerMonitor(address, auth, on_error=self.set_error)     # TODO: display errors
-        self.monitor.add_refresh_handler(self.on_refresh)
-        self.invalidate = Event(self)
         self.error = None
-
-    def set_error(self, error):
-        self.error = error
-
-    def set_payload_key(self, event, key):
-        self.payload_key = key
-        return True
 
     def set_fields(self, fields):
         self.lines[1] = list(fields or [("", "")])
@@ -113,7 +100,6 @@ class ServerControl(UIControl):
         self.set_fields(DEFAULT_FIELDS)
         self.set_alignments(DEFAULT_ALIGNMENTS)
         title = str(self.data.system)
-        self.lines[1][-1] = ("", self.payload_key.upper())
         for q in sorted(self.data.queries, key=lambda q0: q0.elapsed_time, reverse=True):
             # q["queryId"] = q["queryId"].partition("-")[-1]
             q.text = q.text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
@@ -137,16 +123,14 @@ class ServerControl(UIControl):
                 ("", q.cpu_time),
                 ("", q.wait_time),
                 ("", q.idle_time),
-                (payload_style, getattr(q, self.payload_key)),
+                (payload_style, q.text),
             ])
         self.title.append(("fg:ansiblack bg:ansigray", title))
+        self.error = None
         self.invalidate.fire()
 
-    def get_invalidate_events(self):
-        """
-        Return the Window invalidate events.
-        """
-        yield self.invalidate
+    def on_error(self, error):
+        self.error = error
 
     def create_content(self, width, height):
         widths = self.widths()
@@ -154,7 +138,10 @@ class ServerControl(UIControl):
         widths[-1] += width - used_width
 
         def get_status_line():
-            if self.data:
+            if self.error:
+                status_text = " {} unavailable -- {}".format(self.address, self.error)
+                style = "fg:ansiwhite bg:ansired"
+            elif self.data:
                 status_text = " {} {}".format(self.address, self.data.system.status_text())
                 # status_text += ", tx={}".format(self.data.transactions.begin_count)
                 # status_text += ", store={}".format(self.data.storage.total_store_size)
@@ -162,8 +149,9 @@ class ServerControl(UIControl):
                 status_text = status_text.ljust(76 - len(meters)) + "  " + meters
                 style = "fg:ansiblack bg:ansigray"
             else:
-                status_text = " {} unavailable -- {}".format(self.address, self.error)
-                style = "fg:ansiwhite bg:ansired"
+                # no data yet
+                status_text = " {} connecting...".format(self.address)
+                style = "fg:ansiblack bg:ansigray"
             return [
                 (self.status_style, "  "),
                 (style, status_text.ljust(width - 2)),
@@ -196,6 +184,3 @@ class ServerControl(UIControl):
             line_count=len(self.lines),
             show_cursor=False,
         )
-
-    def exit(self):
-        self.monitor.exit()
