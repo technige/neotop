@@ -1,5 +1,5 @@
 ======
-Neotop
+Smith
 ======
 
 Neo4j query monitor

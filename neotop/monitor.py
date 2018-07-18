@@ -21,7 +21,7 @@ from __future__ import division
 from datetime import datetime
 from threading import Thread, Lock
 
-from neo4j.v1 import GraphDatabase, CypherError, ServiceUnavailable, READ_ACCESS, sleep
+from neo4j.v1 import GraphDatabase, CypherError, ServiceUnavailable, READ_ACCESS, sleep, SessionExpired
 
 from neotop.units import Load, BytesAmount, Time, Product, Amount
 
@@ -468,7 +468,7 @@ class ServerMonitor(object):
                 self._driver = GraphDatabase.driver(self._uri, auth=self._auth, max_retry_time=1.0)
             with self._driver.session(READ_ACCESS) as session:
                 return session.write_transaction(unit)
-        except (CypherError, ServiceUnavailable) as error:
+        except (CypherError, ServiceUnavailable, SessionExpired) as error:
             self._driver = None
             self._data = None
             if callable(self._on_error):

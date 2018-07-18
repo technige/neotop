@@ -22,6 +22,8 @@ from __future__ import unicode_literals
 
 from os import getenv
 
+from neo4j.exceptions import ServiceUnavailable
+from neo4j.v1 import SessionExpired
 from prompt_toolkit.application import Application
 from prompt_toolkit.application.current import get_app
 from prompt_toolkit.key_binding import KeyBindings
@@ -32,14 +34,16 @@ from prompt_toolkit.styles import Style
 
 from neotop.controls.overview import OverviewControl, StyleList
 from neotop.controls.server import ServerControl
+from neotop.meta import __version__
 
 
 NEO4J_ADDRESS = getenv("NEO4J_ADDRESS", "localhost:7687")
 NEO4J_AUTH = tuple(getenv("NEO4J_AUTH", "neo4j:password").partition(":")[::2])
 
 
-class Neotop(Application):
+class Smith(Application):
 
+    overview_control = None
     overview = None
 
     style = Style.from_dict({
@@ -54,9 +58,11 @@ class Neotop(Application):
         self.style_list = StyleList()
         primary_server = ServerControl(self.address, self.auth, self.style_list.assign_style(self.address))
         self.server_windows = [Window(content=primary_server)]
-        self.help_bar = Window(content=FormattedTextControl(text="[Ctrl+C] Exit  [F12] Overview"),
-                               height=1, dont_extend_height=True, style="bg:ansibrightblack fg:ansiwhite")
-        super(Neotop, self).__init__(
+        self.header = Window(content=FormattedTextControl(text="Agent Smith {}".format(__version__)), always_hide_cursor=True,
+                             height=1, dont_extend_height=True, style="bg:#202020 fg:ansiwhite")
+        self.footer = Window(content=FormattedTextControl(text="[Ctrl+C] Exit  [F12] Overview"), always_hide_cursor=True,
+                             height=1, dont_extend_height=True, style="bg:#202020 fg:ansiwhite")
+        super(Smith, self).__init__(
             key_bindings=self.bindings,
             style=self.style,
             # mouse_support=True,
@@ -67,20 +73,28 @@ class Neotop(Application):
     def update_layout(self):
         if self.overview:
             self.layout = Layout(
-                VSplit([
-                    HSplit(self.server_windows + [self.help_bar]),
-                    HSplit([
-                        self.overview,
-                        Window(FormattedTextControl(text="[Ins ][Home][PgUp]\n[Del ][End ][PgDn]"),
-                               style="bg:#202020 fg:ansigray", height=2, align=WindowAlign.CENTER,
-                               dont_extend_height=True),
+                HSplit([
+                    self.header,
+                    VSplit([
+                        HSplit(self.server_windows),
+                        HSplit([
+                            self.overview,
+                            Window(FormattedTextControl(text="[Ins ][Home][PgUp]\n[Del ][End ][PgDn]"),
+                                   style="bg:#202020 fg:ansigray", height=2, align=WindowAlign.CENTER,
+                                   dont_extend_height=True),
+                        ]),
                     ]),
+                    self.footer,
                 ]),
             )
         else:
             self.layout = Layout(
-                VSplit([
-                    HSplit(self.server_windows + [self.help_bar]),
+                HSplit([
+                    self.header,
+                    VSplit([
+                        HSplit(self.server_windows),
+                    ]),
+                    self.footer,
                 ]),
             )
 
@@ -148,16 +162,20 @@ class Neotop(Application):
 
     def toggle_overview(self, _):
         if self.overview is None:
-            overview = OverviewControl(self.address, self.auth, self.style_list)
-            self.overview = Window(content=overview, width=20, dont_extend_width=True, style="bg:#202020")
+            if self.overview_control is None:
+                try:
+                    self.overview_control = OverviewControl(self.address, self.auth, self.style_list)
+                except (ServiceUnavailable, SessionExpired):
+                    pass
+            if self.overview_control:
+                self.overview = Window(content=self.overview_control, width=20, dont_extend_width=True, style="bg:#202020")
         else:
-            self.overview.content.exit()
             self.overview = None
         self.update_layout()
 
     def do_exit(self, _):
-        if self.overview:
-            self.overview.content.exit()
+        if self.overview_control:
+            self.overview_control.exit()
         for window in self.server_windows:
             window.content.exit()
         get_app().exit(result=0)

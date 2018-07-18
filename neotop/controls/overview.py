@@ -64,6 +64,7 @@ class OverviewControl(DataControl):
         self.servers = dict.fromkeys(self.server_roles, [])
         self.max_width = 0
         self.padding = 0
+        # TODO: selected_address, instead of these two
         self.selected_role = u"LEADER"
         self.selected_index = 0
 
