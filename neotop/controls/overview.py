@@ -22,6 +22,33 @@ from prompt_toolkit.layout import UIContent
 from neotop.controls.data import DataControl
 
 
+class StyleList(object):
+
+    def __init__(self):
+        self.assigned_styles = {}
+        self.unassigned_styles = {
+            "fg:ansiwhite bg:ansiblue",
+            "fg:ansiwhite bg:ansicyan",
+            "fg:ansiwhite bg:ansimagenta",
+            "fg:ansiwhite bg:ansiyellow",
+        }
+
+    def assign_style(self, key):
+        if key not in self.assigned_styles and self.unassigned_styles:
+            assigned_style = sorted(self.unassigned_styles)[0]
+            self.unassigned_styles.remove(assigned_style)
+            self.assigned_styles[key] = assigned_style
+        return self.assigned_styles.get(key)
+
+    def unassign_style(self, address):
+        if address in self.assigned_styles:
+            assigned_style = self.assigned_styles[address]
+            self.unassigned_styles.add(assigned_style)
+            del self.assigned_styles[address]
+            return assigned_style
+        return None
+
+
 class OverviewControl(DataControl):
 
     server_roles = [
@@ -30,17 +57,11 @@ class OverviewControl(DataControl):
         u"READ_REPLICA",
     ]
 
-    def __init__(self, address, auth):
-        super(OverviewControl, self).__init__(address, auth)
+    def __init__(self, address, auth, style_list, key_bindings=None):
+        super(OverviewControl, self).__init__(address, auth, prefer_routing=True, key_bindings=key_bindings)
+        self.style_list = style_list
         self.mode = None
         self.servers = dict.fromkeys(self.server_roles, [])
-        self.address_styles = {}
-        self.unused_styles = {
-            "fg:ansiwhite bg:ansiblue",
-            "fg:ansiwhite bg:ansicyan",
-            "fg:ansiwhite bg:ansimagenta",
-            "fg:ansiwhite bg:ansiyellow",
-        }
         self.max_width = 0
         self.padding = 0
         self.selected_role = u"LEADER"
@@ -50,8 +71,11 @@ class OverviewControl(DataControl):
         return self.max_width
 
     def on_refresh(self, data):
+        if data is None:
+            self.invalidate.fire()
+            return
         self.mode = data.system.dbms.mode
-        if self.mode == u"CORE":
+        if self.mode in (u"CORE", u"READ_REPLICA"):
             overview = data.cluster_overview
             widths = [0]
             for role in self.servers:
@@ -67,14 +91,14 @@ class OverviewControl(DataControl):
         self.invalidate.fire()
 
     def on_error(self, error):
-        print(error)
+        pass # print(error)
 
     def create_content(self, width, height):
         lines = []
 
         def append_servers(role):
             for i, address in enumerate(self.servers[role]):
-                address_style = self.address_styles.get(address, "")
+                address_style = self.style_list.assigned_styles.get(address, "")
                 if role == self.selected_role and i == self.selected_index:
                     lines.append([
                         ("", " "),
@@ -93,7 +117,7 @@ class OverviewControl(DataControl):
                     ])
 
         if self.servers[u"LEADER"]:
-            if self.mode == u"CORE":
+            if self.for_cluster_core:
                 lines.append([("fg:#A0A0A0", " Leader".ljust(width))])
             else:
                 lines.append([("fg:#A0A0A0", " Server".ljust(width))])
@@ -125,21 +149,10 @@ class OverviewControl(DataControl):
             return self.address
 
     def add_highlight(self):
-        address = self.selected_address
-        if address not in self.address_styles and self.unused_styles:
-            address_style = sorted(self.unused_styles)[0]
-            self.unused_styles.remove(address_style)
-            self.address_styles[address] = address_style
-        return self.address_styles.get(address)
+        return self.style_list.assign_style(self.selected_address)
 
     def remove_highlight(self):
-        address = self.selected_address
-        if address in self.address_styles:
-            address_style = self.address_styles[address]
-            self.unused_styles.add(address_style)
-            del self.address_styles[address]
-            return address_style
-        return None
+        return self.style_list.unassign_style(self.selected_address)
 
     def home(self, event):
         if not self.servers[self.selected_role]:

@@ -385,6 +385,7 @@ class ServerMonitor(object):
     __instances = {}
 
     _address = None
+    _routing = None
     _uri = None
     _auth = None
     _driver = None
@@ -396,12 +397,27 @@ class ServerMonitor(object):
     _lock = None
     _data = None
 
-    def __new__(cls, address, auth, on_error=None):
+    @classmethod
+    def dbms_mode(cls, address, auth):
+        uri = "bolt://{}".format(address)
+        with GraphDatabase.driver(uri, auth=auth) as driver:
+            with driver.session(READ_ACCESS) as session:
+                return session.run("CALL dbms.listConfig('dbms.mode') YIELD value").value()[0]
+
+    @classmethod
+    def is_cluster_core(cls, address, auth):
+        return cls.dbms_mode(address, auth) == u"CORE"
+
+    def __new__(cls, address, auth, prefer_routing=False, on_error=None):
         with cls.__lock:
-            if address not in cls.__instances:
-                inst = cls.__instances[address] = object.__new__(cls)
+            is_cluster_core = prefer_routing and cls.is_cluster_core(address, auth)
+            scheme = "bolt+routing" if is_cluster_core else "bolt"
+            uri = "{}://{}".format(scheme, address)
+            if uri not in cls.__instances:
+                inst = cls.__instances[uri] = object.__new__(cls)
                 inst._address = address
-                inst._uri = "bolt://{}".format(inst.address)
+                inst._for_cluster_core = is_cluster_core
+                inst._uri = uri
                 inst._auth = auth
                 inst._driver = None
                 inst._running = False
@@ -411,7 +427,7 @@ class ServerMonitor(object):
                 inst._on_error = on_error
                 inst._lock = Lock()
                 inst._data = None
-            return cls.__instances[address]
+            return cls.__instances[uri]
 
     def attach(self, event):
         with self._lock:
@@ -428,7 +444,7 @@ class ServerMonitor(object):
                 self._refresh_thread.join()
                 if self._driver:
                     self._driver.close()
-                del self.__instances[self.address]
+                del self.__instances[self.uri]
 
     def loop(self):
         while self._running:
@@ -451,7 +467,7 @@ class ServerMonitor(object):
             if not self._driver:
                 self._driver = GraphDatabase.driver(self._uri, auth=self._auth, max_retry_time=1.0)
             with self._driver.session(READ_ACCESS) as session:
-                return session.read_transaction(unit)
+                return session.write_transaction(unit)
         except (CypherError, ServiceUnavailable) as error:
             self._driver = None
             self._data = None
@@ -517,7 +533,15 @@ class ServerMonitor(object):
                 data.cluster_membership = self._extract_jmx(jmx, u"org.neo4j:instance=kernel#0,name=Causal Clustering")
                 data.cluster_overview = tx.run("CALL dbms.cluster.overview").data()
 
+        else:
+
+            data.queries = None
+
         self._data = data
+
+    @property
+    def for_cluster_core(self):
+        return self._for_cluster_core
 
     @property
     def uri(self):

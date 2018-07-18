@@ -24,11 +24,16 @@ from neotop.monitor import ServerMonitor
 
 class DataControl(UIControl):
 
-    def __init__(self, address, auth):
+    def __init__(self, address, auth, prefer_routing=False, key_bindings=None):
         self.address = address
-        self.monitor = ServerMonitor(address, auth, on_error=self.on_error)
+        self.monitor = ServerMonitor(address, auth, prefer_routing=prefer_routing, on_error=self.on_error)
         self.monitor.attach(self.on_refresh)
+        self.key_bindings = key_bindings
         self.invalidate = Event(self)
+
+    @property
+    def for_cluster_core(self):
+        return self.monitor.for_cluster_core
 
     def exit(self):
         self.monitor.detach(self.on_refresh)
@@ -41,6 +46,9 @@ class DataControl(UIControl):
 
     def create_content(self, width, height):
         pass
+
+    def get_key_bindings(self):
+        return self.key_bindings
 
     def get_invalidate_events(self):
         yield self.invalidate

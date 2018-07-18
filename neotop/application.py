@@ -30,7 +30,7 @@ from prompt_toolkit.layout.containers import Window, VSplit, HSplit, WindowAlign
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.styles import Style
 
-from neotop.controls.overview import OverviewControl
+from neotop.controls.overview import OverviewControl, StyleList
 from neotop.controls.server import ServerControl
 
 
@@ -39,6 +39,8 @@ NEO4J_AUTH = tuple(getenv("NEO4J_AUTH", "neo4j:password").partition(":")[::2])
 
 
 class Neotop(Application):
+
+    overview = None
 
     style = Style.from_dict({
         # TODO
@@ -49,10 +51,9 @@ class Neotop(Application):
         self.address = "%s:%s" % (host or "localhost", port or 7687)
         self.user = user or "neo4j"
         self.auth = (self.user, password or "")
-        self.overview = OverviewControl(self.address, self.auth)
-        self.overview_visible = False
-        self.overview_window = Window(content=self.overview, dont_extend_width=True, style="bg:#202020")
-        self.server_windows = [Window(content=ServerControl(self.address, self.auth, self.overview.add_highlight()))]
+        self.style_list = StyleList()
+        primary_server = ServerControl(self.address, self.auth, self.style_list.assign_style(self.address))
+        self.server_windows = [Window(content=primary_server)]
         self.help_bar = Window(content=FormattedTextControl(text="[Ctrl+C] Exit  [F12] Overview"),
                                height=1, dont_extend_height=True, style="bg:ansibrightblack fg:ansiwhite")
         super(Neotop, self).__init__(
@@ -64,12 +65,12 @@ class Neotop(Application):
         self.update_layout()
 
     def update_layout(self):
-        if self.overview_visible:
+        if self.overview:
             self.layout = Layout(
                 VSplit([
                     HSplit(self.server_windows + [self.help_bar]),
                     HSplit([
-                        self.overview_window,
+                        self.overview,
                         Window(FormattedTextControl(text="[Ins ][Home][PgUp]\n[Del ][End ][PgDn]"),
                                style="bg:#202020 fg:ansigray", height=2, align=WindowAlign.CENTER,
                                dont_extend_height=True),
@@ -84,9 +85,9 @@ class Neotop(Application):
             )
 
     def insert(self, event):
-        address_style = self.overview.add_highlight()
+        address_style = self.overview.content.add_highlight()
         if address_style is not None:
-            selected_address = self.overview.selected_address
+            selected_address = self.overview.content.selected_address
             for window in self.server_windows:
                 if window.content.address == selected_address:
                     return
@@ -95,12 +96,12 @@ class Neotop(Application):
 
     def delete(self, event):
         if len(self.server_windows) > 1:
-            selected_address = self.overview.selected_address
+            selected_address = self.overview.content.selected_address
             for window in list(self.server_windows):
                 if window.content.address == selected_address:
                     window.content.exit()
                     self.server_windows.remove(window)
-                    self.overview.remove_highlight()
+                    self.overview.content.remove_highlight()
             self.update_layout()
 
     @property
@@ -110,16 +111,33 @@ class Neotop(Application):
 
         bindings.add('0')(self.toggle_overview)
         bindings.add('f12')(self.toggle_overview)
+
         bindings.add('insert')(self.action(self.insert))
         bindings.add('+')(self.action(self.insert))
         bindings.add('delete')(self.action(self.delete))
         bindings.add('-')(self.action(self.delete))
-        bindings.add('home')(self.action(self.overview.home))
-        bindings.add('end')(self.action(self.overview.end))
-        bindings.add('pageup')(self.action(self.overview.page_up))
-        bindings.add('pagedown')(self.action(self.overview.page_down))
+        bindings.add('home')(self.action(self.home))
+        bindings.add('end')(self.action(self.end))
+        bindings.add('pageup')(self.action(self.page_up))
+        bindings.add('pagedown')(self.action(self.page_down))
 
         return bindings
+
+    def home(self, event):
+        if self.overview:
+            return self.overview.content.home(event)
+
+    def end(self, event):
+        if self.overview:
+            return self.overview.content.end(event)
+
+    def page_up(self, event):
+        if self.overview:
+            return self.overview.content.page_up(event)
+
+    def page_down(self, event):
+        if self.overview:
+            return self.overview.content.page_down(event)
 
     def action(self, handler, *args, **kwargs):
 
@@ -129,11 +147,17 @@ class Neotop(Application):
         return f
 
     def toggle_overview(self, _):
-        self.overview_visible = not self.overview_visible
+        if self.overview is None:
+            overview = OverviewControl(self.address, self.auth, self.style_list)
+            self.overview = Window(content=overview, width=20, dont_extend_width=True, style="bg:#202020")
+        else:
+            self.overview.content.exit()
+            self.overview = None
         self.update_layout()
 
     def do_exit(self, _):
-        self.overview.exit()
+        if self.overview:
+            self.overview.content.exit()
         for window in self.server_windows:
             window.content.exit()
         get_app().exit(result=0)

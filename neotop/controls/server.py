@@ -100,31 +100,32 @@ class ServerControl(DataControl):
         self.set_fields(DEFAULT_FIELDS)
         self.set_alignments(DEFAULT_ALIGNMENTS)
         title = str(self.data.system)
-        for q in sorted(self.data.queries, key=lambda q0: q0.elapsed_time, reverse=True):
-            # q["queryId"] = q["queryId"].partition("-")[-1]
-            q.text = q.text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
-            client = "{}/{}".format(q.protocol[0].upper(), q.client_address)
-            if q.status == "running":
-                payload_style = "fg:ansigreen"
-            elif q.status == "planning":
-                payload_style = "fg:ansiblue"
-            else:
-                print(q.status)
-                payload_style = ""
-            self.append([
-                ("", q.id),
-                ("fg:ansibrightblack" if q.user == "neo4j" else "", q.user),
-                ("", client),
-                ("", q.allocated_bytes),
-                ("", q.active_lock_count),
-                ("", q.page_hits),
-                ("", q.page_faults),
-                ("", q.elapsed_time),
-                ("", q.cpu_time),
-                ("", q.wait_time),
-                ("", q.idle_time),
-                (payload_style, q.text),
-            ])
+        if self.data.queries:
+            for q in sorted(self.data.queries, key=lambda q0: q0.elapsed_time, reverse=True):
+                # q["queryId"] = q["queryId"].partition("-")[-1]
+                q.text = q.text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
+                client = "{}/{}".format(q.protocol[0].upper(), q.client_address)
+                if q.status == "running":
+                    payload_style = "fg:ansigreen"
+                elif q.status == "planning":
+                    payload_style = "fg:ansiblue"
+                else:
+                    print(q.status)
+                    payload_style = ""
+                self.append([
+                    ("", q.id),
+                    ("fg:ansibrightblack" if q.user == "neo4j" else "", q.user),
+                    ("", client),
+                    ("", q.allocated_bytes),
+                    ("", q.active_lock_count),
+                    ("", q.page_hits),
+                    ("", q.page_faults),
+                    ("", q.elapsed_time),
+                    ("", q.cpu_time),
+                    ("", q.wait_time),
+                    ("", q.idle_time),
+                    (payload_style, q.text),
+                ])
         self.title.append(("fg:ansiblack bg:ansigray", title))
         self.error = None
         self.invalidate.fire()
@@ -142,11 +143,13 @@ class ServerControl(DataControl):
                 status_text = " {} unavailable -- {}".format(self.address, self.error)
                 style = "fg:ansiwhite bg:ansired"
             elif self.data:
-                status_text = " {} {}".format(self.address, self.data.system.status_text())
+                status_text = " {} {}, {}, {}".format(
+                    self.address,
+                    self.data.system.status_text(),
+                    self.data.memory.heap_meter(10),
+                    self.data.system.cpu_meter(10))
                 # status_text += ", tx={}".format(self.data.transactions.begin_count)
                 # status_text += ", store={}".format(self.data.storage.total_store_size)
-                meters = self.data.memory.heap_meter(10) + " " + self.data.system.cpu_meter(10)
-                status_text = status_text.ljust(76 - len(meters)) + "  " + meters
                 style = "fg:ansiblack bg:ansigray"
             else:
                 # no data yet
@@ -157,27 +160,62 @@ class ServerControl(DataControl):
                 (style, status_text.ljust(width - 2)),
             ]
 
+        def get_header_line():
+            line = []
+            if self.data is None:
+                pass
+            elif self.data.queries is None:
+                message = "Query list not available"
+                if self.data.system.dbms.edition == u"CE":
+                    message += " in Neo4j Community Edition"
+                line.append((self.header_style, message.ljust(width)))
+            else:
+                try:
+                    li = self.lines[1]
+                except IndexError:
+                    pass
+                else:
+                    for x, (_, cell) in enumerate(li):
+                        if x > 0:
+                            line.append((self.header_style, " "))
+                        alignment = self.alignments[x]
+                        cell_width = widths[x]
+                        if alignment == ">":
+                            line.append((self.header_style, cell.rjust(cell_width)))
+                        else:
+                            line.append((self.header_style, cell.ljust(cell_width)))
+            return line
+
+        def get_data_line(y):
+            line = []
+            if self.data is None:
+                pass
+            elif self.data.queries is None:
+                pass
+            else:
+                try:
+                    li = self.lines[y]
+                except IndexError:
+                    pass
+                else:
+                    for x, (style, cell) in enumerate(li):
+                        if x > 0:
+                            line.append((style, " "))
+                        alignment = self.alignments[x]
+                        cell_width = widths[x]
+                        if alignment == ">":
+                            line.append((style, cell.rjust(cell_width)))
+                        else:
+                            line.append((style, cell.ljust(cell_width)))
+            return line
+
         def get_line(y):
             if y == 0:
                 return get_status_line()
-            line = []
-            try:
-                li = self.lines[y]
-            except IndexError:
-                pass
+            elif y == 1:
+                return get_header_line()
             else:
-                for x, (style, cell) in enumerate(li):
-                    if y == 1:
-                        style = self.header_style
-                    if x > 0:
-                        line.append((style, " "))
-                    alignment = self.alignments[x]
-                    cell_width = widths[x]
-                    if alignment == ">":
-                        line.append((style, cell.rjust(cell_width)))
-                    else:
-                        line.append((style, cell.ljust(cell_width)))
-            return line
+                return get_data_line(y)
 
         return UIContent(
             get_line=get_line,
