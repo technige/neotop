@@ -20,7 +20,7 @@ from __future__ import unicode_literals
 
 from prompt_toolkit.layout import UIContent
 
-from neotop.controls.data import DataControl
+from agentsmith.controls.data import DataControl
 
 
 DEFAULT_FIELDS = [

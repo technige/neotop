@@ -32,9 +32,9 @@ from prompt_toolkit.layout.containers import Window, VSplit, HSplit, WindowAlign
 from prompt_toolkit.layout.layout import Layout
 from prompt_toolkit.styles import Style
 
-from neotop.controls.overview import OverviewControl, StyleList
-from neotop.controls.server import ServerControl
-from neotop.meta import __version__
+from agentsmith.controls.overview import OverviewControl, StyleList
+from agentsmith.controls.server import ServerControl
+from agentsmith.meta import __version__
 
 
 NEO4J_ADDRESS = getenv("NEO4J_ADDRESS", "localhost:7687")

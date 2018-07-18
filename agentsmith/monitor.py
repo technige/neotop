@@ -23,7 +23,7 @@ from threading import Thread, Lock
 
 from neo4j.v1 import GraphDatabase, CypherError, ServiceUnavailable, READ_ACCESS, sleep, SessionExpired
 
-from neotop.units import Load, BytesAmount, Time, Product, Amount
+from agentsmith.units import Load, BytesAmount, Time, Product, Amount
 
 
 def nested_get(d, *keys):

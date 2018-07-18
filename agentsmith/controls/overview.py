@@ -19,7 +19,7 @@
 from neo4j.v1 import urlparse
 from prompt_toolkit.layout import UIContent
 
-from neotop.controls.data import DataControl
+from agentsmith.controls.data import DataControl
 
 
 class StyleList(object):

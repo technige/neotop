@@ -19,7 +19,7 @@
 from prompt_toolkit.layout import UIControl
 from prompt_toolkit.utils import Event
 
-from neotop.monitor import ServerMonitor
+from agentsmith.monitor import ServerMonitor
 
 
 class DataControl(UIControl):

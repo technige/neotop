@@ -40,7 +40,7 @@ If the port is omitted, 7687 is assumed.
                 envvar="NEO4J_ADDRESS",
                 default="localhost:7687")
 def main(address=None, user=None, password=None):
-    from neotop.application import Smith
+    from agentsmith.application import Smith
     raise SystemExit(Smith(
         address=address,
         user=user,

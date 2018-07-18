@@ -22,7 +22,7 @@ try:
 except ImportError:
     from distutils.core import setup, find_packages
 
-from neotop.meta import __author__, __email__, __license__, __package__, __version__
+from agentsmith.meta import __author__, __email__, __license__, __package__, __version__
 
 
 with open(path_join(dirname(__file__), "README.rst")) as f:
@@ -32,14 +32,14 @@ packages = find_packages(exclude=[])
 package_metadata = {
     "name": __package__,
     "version": __version__,
-    "description": "Neo4j query monitor",
+    "description": "Neo4j monitor",
     "long_description": README,
     "author": __author__,
     "author_email": __email__,
-    "url": "http://github.com/technige/neotop",
+    "url": "http://github.com/technige/agentsmith",
     "entry_points": {
         "console_scripts": [
-            "neotop = neotop.__main__:main",
+            "agentsmith = agentsmith.__main__:main",
         ],
     },
     "packages": packages,
@@ -50,7 +50,6 @@ package_metadata = {
     ],
     "license": __license__,
     "classifiers": [
-        "Development Status :: 6 - Mature",
         "Environment :: Console",
         "Intended Audience :: Developers",
         "Intended Audience :: Information Technology",

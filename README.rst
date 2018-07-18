@@ -1,15 +1,15 @@
-======
-Smith
-======
+===========
+Agent Smith
+===========
 
-Neo4j query monitor
+Neo4j monitor
 
 Installation
 ============
 
 ::
 
-    $ pip install neotop
+    $ pip install agentsmith
 
 
 Execution
@@ -17,9 +17,8 @@ Execution
 
 ::
 
-    $ export NEO4J_ADDR="localhost:7687"
-    $ export NEO4J_AUTH="neo4j:password"
-    $ neotop
+    $ export NEO4J_PASSWORD="password"
+    $ agentsmith localhost:7687
 
 
 Screenshot
