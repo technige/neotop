@@ -37,7 +37,8 @@ If the port is omitted, 7687 is assumed.
               confirmation_prompt=False,
               hide_input=True)
 @click.argument("address",
-                envvar="NEO4J_ADDRESS")
+                envvar="NEO4J_ADDRESS",
+                default="localhost:7687")
 def main(address=None, user=None, password=None):
     from neotop.application import Neotop
     raise SystemExit(Neotop(
