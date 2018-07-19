@@ -99,7 +99,7 @@ class AgentSmith(Application):
             )
 
     def insert(self, event):
-        address_style = self.overview.content.add_highlight()
+        address_style = self.style_list.assign_style(self.overview.content.selected_address)
         if address_style is not None:
             selected_address = self.overview.content.selected_address
             for window in self.server_windows:
@@ -115,7 +115,7 @@ class AgentSmith(Application):
                 if window.content.address == selected_address:
                     window.content.exit()
                     self.server_windows.remove(window)
-                    self.overview.content.remove_highlight()
+                    self.style_list.unassign_style(self.overview.content.selected_address)
             self.update_layout()
 
     @property

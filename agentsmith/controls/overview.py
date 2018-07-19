@@ -149,12 +149,6 @@ class OverviewControl(DataControl):
         except IndexError:
             return self.address
 
-    def add_highlight(self):
-        return self.style_list.assign_style(self.selected_address)
-
-    def remove_highlight(self):
-        return self.style_list.unassign_style(self.selected_address)
-
     def home(self, event):
         if not self.servers[self.selected_role]:
             return False
