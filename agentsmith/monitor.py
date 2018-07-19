@@ -21,7 +21,7 @@ from __future__ import division
 from datetime import datetime
 from threading import Thread, Lock
 
-from neo4j.v1 import GraphDatabase, CypherError, ServiceUnavailable, READ_ACCESS, sleep, SessionExpired
+from neo4j.v1 import GraphDatabase, CypherError, ServiceUnavailable, READ_ACCESS, sleep, SessionExpired, urlparse
 
 from agentsmith.units import Load, BytesAmount, Time, Product, Amount
 
@@ -351,6 +351,23 @@ class PageCacheData(object):
         return "\n".join(s)
 
 
+class ClusterOverviewData(object):
+
+    def __init__(self, data):
+        self.data = data
+
+        def first_address(server):
+            return urlparse(server[u"addresses"][0]).netloc
+
+        leaders = [("Leader", first_address(server))
+                   for server in data if server[u"role"] == u"LEADER"]
+        followers = [("Followers", first_address(server))
+                     for server in data if server[u"role"] == u"FOLLOWER"]
+        read_replicas = [("Read replicas", first_address(server))
+                         for server in data if server[u"role"] == u"READ_REPLICA"]
+        self.servers = leaders + followers + read_replicas
+
+
 class ServerData(object):
 
     # System and common DBMS data
@@ -531,7 +548,7 @@ class ServerMonitor(object):
 
             if data.system.dbms.mode == u"CORE":
                 data.cluster_membership = self._extract_jmx(jmx, u"org.neo4j:instance=kernel#0,name=Causal Clustering")
-                data.cluster_overview = tx.run("CALL dbms.cluster.overview").data()
+                data.cluster_overview = ClusterOverviewData(tx.run("CALL dbms.cluster.overview").data())
 
         else:
 

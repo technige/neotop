@@ -81,7 +81,7 @@ class OverviewControl(DataControl):
             widths = [0]
             for role in self.servers:
                 self.servers[role] = [urlparse(server[u"addresses"][0]).netloc
-                                      for server in overview if server[u"role"] == role]
+                                      for server in overview.data if server[u"role"] == role]
                 widths.extend(map(len, self.servers[role]))
             self.max_width = max(widths)
         else:
