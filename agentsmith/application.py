@@ -41,7 +41,7 @@ NEO4J_ADDRESS = getenv("NEO4J_ADDRESS", "localhost:7687")
 NEO4J_AUTH = tuple(getenv("NEO4J_AUTH", "neo4j:password").partition(":")[::2])
 
 
-class Smith(Application):
+class AgentSmith(Application):
 
     overview_control = None
     overview = None
@@ -60,9 +60,9 @@ class Smith(Application):
         self.server_windows = [Window(content=primary_server)]
         self.header = Window(content=FormattedTextControl(text="Agent Smith {}".format(__version__)), always_hide_cursor=True,
                              height=1, dont_extend_height=True, style="bg:#202020 fg:ansiwhite")
-        self.footer = Window(content=FormattedTextControl(text="[Ctrl+C] Exit  [F12] Overview"), always_hide_cursor=True,
+        self.footer = Window(content=FormattedTextControl(text="[O] Overview  [Ctrl+C] Exit"), always_hide_cursor=True,
                              height=1, dont_extend_height=True, style="bg:#202020 fg:ansiwhite")
-        super(Smith, self).__init__(
+        super(AgentSmith, self).__init__(
             key_bindings=self.bindings,
             style=self.style,
             # mouse_support=True,
@@ -123,7 +123,7 @@ class Smith(Application):
         bindings = KeyBindings()
         bindings.add('c-c')(self.do_exit)
 
-        bindings.add('0')(self.toggle_overview)
+        bindings.add('o')(self.toggle_overview)
         bindings.add('f12')(self.toggle_overview)
 
         bindings.add('insert')(self.action(self.insert))

@@ -40,8 +40,8 @@ If the port is omitted, 7687 is assumed.
                 envvar="NEO4J_ADDRESS",
                 default="localhost:7687")
 def main(address=None, user=None, password=None):
-    from agentsmith.application import Smith
-    raise SystemExit(Smith(
+    from agentsmith.application import AgentSmith
+    raise SystemExit(AgentSmith(
         address=address,
         user=user,
         password=password,

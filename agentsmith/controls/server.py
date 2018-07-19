@@ -102,7 +102,6 @@ class ServerControl(DataControl):
         title = str(self.data.system)
         if self.data.queries:
             for q in sorted(self.data.queries, key=lambda q0: q0.elapsed_time, reverse=True):
-                # q["queryId"] = q["queryId"].partition("-")[-1]
                 q.text = q.text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
                 client = "{}/{}".format(q.protocol[0].upper(), q.client_address)
                 if q.status == "running":
