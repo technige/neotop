@@ -56,7 +56,8 @@ class AgentSmith(Application):
         self.user = user or "neo4j"
         self.auth = (self.user, password or "")
         self.style_list = StyleList()
-        primary_server = ServerControl(self.address, self.auth, self.style_list.assign_style(self.address))
+        self.style_list.assign_style(self.address)
+        primary_server = ServerControl(self, self.address, self.auth)
         self.server_windows = [Window(content=primary_server)]
         self.header = Window(content=FormattedTextControl(text="Agent Smith {}".format(__version__)), always_hide_cursor=True,
                              height=1, dont_extend_height=True, style="bg:#202020 fg:ansiwhite")
@@ -105,7 +106,7 @@ class AgentSmith(Application):
             for window in self.server_windows:
                 if window.content.address == selected_address:
                     return
-            self.server_windows.append(Window(content=ServerControl(selected_address, self.auth, address_style)))
+            self.server_windows.append(Window(content=ServerControl(self, selected_address, self.auth)))
             self.update_layout()
 
     def delete(self, event):

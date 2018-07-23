@@ -33,6 +33,9 @@ class StyleList(object):
             "fg:ansiwhite bg:ansiyellow",
         }
 
+    def get_style(self, key):
+        return self.assigned_styles.get(key)
+
     def assign_style(self, key):
         if key not in self.assigned_styles and self.unassigned_styles:
             assigned_style = sorted(self.unassigned_styles)[0]

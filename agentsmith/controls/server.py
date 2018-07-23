@@ -55,18 +55,20 @@ DEFAULT_ALIGNMENTS = [
 
 class ServerControl(DataControl):
 
+    overview = None
     data = None
 
-    def __init__(self, address, auth, status_style):
+    def __init__(self, application, address, auth):
         super(ServerControl, self).__init__(address, auth)
+        self.application = application
         self.title = []
         self.lines = [
             self.title,
             [("", "")],
         ]
         self.alignments = ["<"]
-        self.status_style = status_style
-        self.header_style = "fg:ansiwhite bg:ansibrightblack"
+        self.status_style = self.application.style_list.get_style(self.address)
+        self.header_style = "fg:#339999"
         self.error = None
 
     def set_fields(self, fields):
@@ -95,11 +97,17 @@ class ServerControl(DataControl):
         if self.data is None:
             self.invalidate.fire()
             return
-        self.title[:] = [(self.status_style, "  "), ("fg:ansiblack bg:ansigray", " ")]
         self.clear()
         self.set_fields(DEFAULT_FIELDS)
         self.set_alignments(DEFAULT_ALIGNMENTS)
-        title = str(self.data.system)
+
+        def stat_tuple(stat):
+            s = str(stat)
+            if s == "0" or s == "~":
+                return "fg:ansibrightblack", s
+            else:
+                return "", s
+
         if self.data.queries:
             for q in sorted(self.data.queries, key=lambda q0: q0.elapsed_time, reverse=True):
                 q.text = q.text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
@@ -107,25 +115,23 @@ class ServerControl(DataControl):
                 if q.status == "running":
                     payload_style = "fg:ansigreen"
                 elif q.status == "planning":
-                    payload_style = "fg:ansiblue"
+                    payload_style = "fg:ansicyan"
                 else:
-                    print(q.status)
                     payload_style = ""
                 self.append([
                     ("", q.id),
                     ("fg:ansibrightblack" if q.user == "neo4j" else "", q.user),
                     ("", client),
                     ("", q.allocated_bytes),
-                    ("", q.active_lock_count),
-                    ("", q.page_hits),
-                    ("", q.page_faults),
-                    ("", q.elapsed_time),
-                    ("", q.cpu_time),
-                    ("", q.wait_time),
-                    ("", q.idle_time),
+                    stat_tuple(q.active_lock_count),
+                    stat_tuple(q.page_hits),
+                    stat_tuple(q.page_faults),
+                    stat_tuple(q.elapsed_time),
+                    stat_tuple(q.cpu_time),
+                    stat_tuple(q.wait_time),
+                    stat_tuple(q.idle_time),
                     (payload_style, q.text),
                 ])
-        self.title.append(("fg:ansiblack bg:ansigray", title))
         self.error = None
         self.invalidate.fire()
 
@@ -133,6 +139,11 @@ class ServerControl(DataControl):
         self.error = error
 
     def create_content(self, width, height):
+        if self.application.overview is None or self.application.overview.content.selected_address == self.address:
+            focus = True
+        else:
+            focus = False
+
         widths = self.widths()
         used_width = sum(widths)
         widths[-1] += width - used_width
@@ -149,11 +160,11 @@ class ServerControl(DataControl):
                     self.data.system.cpu_meter(10))
                 # status_text += ", tx={}".format(self.data.transactions.begin_count)
                 # status_text += ", store={}".format(self.data.storage.total_store_size)
-                style = "fg:ansiblack bg:ansigray"
+                style = "fg:ansiblack bg:ansigray" if focus else "fg:ansiwhite bg:ansibrightblack"
             else:
                 # no data yet
                 status_text = " {} connecting...".format(self.address)
-                style = "fg:ansiblack bg:ansigray"
+                style = "fg:ansiblack bg:ansigray" if focus else "fg:ansiblack bg:ansiyellow"
             return [
                 (self.status_style, "  "),
                 (style, status_text.ljust(width - 2)),
