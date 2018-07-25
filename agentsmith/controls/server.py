@@ -139,10 +139,7 @@ class ServerControl(DataControl):
         self.error = error
 
     def create_content(self, width, height):
-        if self.application.overview is None or self.application.overview.content.selected_address == self.address:
-            focus = True
-        else:
-            focus = False
+        focus = (self.application.focused_address == self.address)
 
         widths = self.widths()
         used_width = sum(widths)

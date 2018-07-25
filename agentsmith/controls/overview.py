@@ -68,8 +68,8 @@ class OverviewControl(DataControl):
         self.max_width = 0
         self.padding = 0
         # TODO: selected_address, instead of these two
-        self.selected_role = u"LEADER"
-        self.selected_index = 0
+        self.focused_role = u"LEADER"
+        self.focused_index = 0
 
     def preferred_width(self, max_available_width):
         return self.max_width
@@ -103,7 +103,7 @@ class OverviewControl(DataControl):
         def append_servers(role):
             for i, address in enumerate(self.servers[role]):
                 address_style = self.style_list.assigned_styles.get(address, "")
-                if role == self.selected_role and i == self.selected_index:
+                if role == self.focused_role and i == self.focused_index:
                     lines.append([
                         ("", " "),
                         (address_style, "  "),
@@ -162,57 +162,57 @@ class OverviewControl(DataControl):
         return a
 
     @property
-    def selected_address(self):
+    def focused_address(self):
         try:
-            return self.servers[self.selected_role][self.selected_index]
+            return self.servers[self.focused_role][self.focused_index]
         except IndexError:
             return self.address
 
     def home(self, event):
-        if not self.servers[self.selected_role]:
+        if not self.servers[self.focused_role]:
             return False
         selected_role = self.server_roles[0]
         selected_index = 0
-        if selected_role != self.selected_role or selected_index != self.selected_index:
-            self.selected_role = selected_role
-            self.selected_index = selected_index
+        if selected_role != self.focused_role or selected_index != self.focused_index:
+            self.focused_role = selected_role
+            self.focused_index = selected_index
             return True
         else:
             return False
 
     def end(self, event):
-        if not self.servers[self.selected_role]:
+        if not self.servers[self.focused_role]:
             return False
         y = -1
         while not self.servers[self.server_roles[y]]:
             y -= 1
         selected_role = self.server_roles[y]
-        selected_index = len(self.servers[self.selected_role]) - 1
-        if selected_role != self.selected_role or selected_index != self.selected_index:
-            self.selected_role = selected_role
-            self.selected_index = selected_index
+        selected_index = len(self.servers[self.focused_role]) - 1
+        if selected_role != self.focused_role or selected_index != self.focused_index:
+            self.focused_role = selected_role
+            self.focused_index = selected_index
             return True
         else:
             return False
 
     def page_up(self, event):
-        if not self.servers[self.selected_role]:
+        if not self.servers[self.focused_role]:
             return False
-        self.selected_index -= 1
-        while self.selected_index < 0:
-            old_role_index = self.server_roles.index(self.selected_role)
+        self.focused_index -= 1
+        while self.focused_index < 0:
+            old_role_index = self.server_roles.index(self.focused_role)
             new_role_index = (old_role_index - 1) % len(self.server_roles)
-            self.selected_role = self.server_roles[new_role_index]
-            self.selected_index = len(self.servers[self.selected_role]) - 1
+            self.focused_role = self.server_roles[new_role_index]
+            self.focused_index = len(self.servers[self.focused_role]) - 1
         return True
 
     def page_down(self, event):
-        if not self.servers[self.selected_role]:
+        if not self.servers[self.focused_role]:
             return False
-        self.selected_index += 1
-        while self.selected_index >= len(self.servers[self.selected_role]):
-            old_role_index = self.server_roles.index(self.selected_role)
+        self.focused_index += 1
+        while self.focused_index >= len(self.servers[self.focused_role]):
+            old_role_index = self.server_roles.index(self.focused_role)
             new_role_index = (old_role_index + 1) % len(self.server_roles)
-            self.selected_role = self.server_roles[new_role_index]
-            self.selected_index = 0
+            self.focused_role = self.server_roles[new_role_index]
+            self.focused_index = 0
         return True

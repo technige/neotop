@@ -63,6 +63,7 @@ class AgentSmith(Application):
                              height=1, dont_extend_height=True, style="bg:#333333 fg:ansiwhite")
         self.footer = Window(content=FormattedTextControl(text="[O] Overview  [Ctrl+C] Exit"), always_hide_cursor=True,
                              height=1, dont_extend_height=True, style="bg:#333333 fg:ansiwhite")
+        self.focus_index = 0
         super(AgentSmith, self).__init__(
             key_bindings=self.bindings,
             style=self.style,
@@ -70,6 +71,13 @@ class AgentSmith(Application):
             full_screen=True,
         )
         self.update_layout()
+
+    @property
+    def focused_address(self):
+        if self.overview:
+            return self.overview.content.focused_address
+        else:
+            return self.server_windows[self.focus_index].content.address
 
     def update_layout(self):
         if self.overview:
@@ -81,7 +89,7 @@ class AgentSmith(Application):
                         HSplit([
                             self.overview,
                             Window(FormattedTextControl(text="[Ins ][Home][PgUp]\n[Del ][End ][PgDn]"),
-                                   style="bg:#202020 fg:ansigray", height=2, align=WindowAlign.CENTER,
+                                   style="bg:#222222 fg:ansigray", height=2, align=WindowAlign.CENTER,
                                    dont_extend_height=True),
                         ]),
                     ]),
@@ -113,9 +121,9 @@ class AgentSmith(Application):
         self.update_layout()
 
     def insert(self, event):
-        address_style = self.style_list.assign_style(self.overview.content.selected_address)
+        address_style = self.style_list.assign_style(self.overview.content.focused_address)
         if address_style is not None:
-            selected_address = self.overview.content.selected_address
+            selected_address = self.overview.content.focused_address
             for window in self.server_windows:
                 if window.content.address == selected_address:
                     return
@@ -123,11 +131,11 @@ class AgentSmith(Application):
 
     def delete(self, event):
         if len(self.server_windows) > 1:
-            selected_address = self.overview.content.selected_address
+            selected_address = self.overview.content.focused_address
             for window in list(self.server_windows):
                 if window.content.address == selected_address:
                     window.content.exit()
-                    self.style_list.unassign_style(self.overview.content.selected_address)
+                    self.style_list.unassign_style(self.overview.content.focused_address)
                     self.on_selection_change()
 
     @property
@@ -152,18 +160,40 @@ class AgentSmith(Application):
     def home(self, event):
         if self.overview:
             return self.overview.content.home(event)
+        elif self.focus_index == 0:
+            return False
+        else:
+            self.focus_index = 0
+            return True
 
     def end(self, event):
         if self.overview:
             return self.overview.content.end(event)
+        elif self.focus_index == len(self.server_windows) - 1:
+            return False
+        else:
+            self.focus_index = len(self.server_windows) - 1
+            return True
 
     def page_up(self, event):
         if self.overview:
             return self.overview.content.page_up(event)
+        new_focus_index = (self.focus_index - 1) % len(self.server_windows)
+        if self.focus_index == new_focus_index:
+            return False
+        else:
+            self.focus_index = new_focus_index
+            return True
 
     def page_down(self, event):
         if self.overview:
             return self.overview.content.page_down(event)
+        new_focus_index = (self.focus_index + 1) % len(self.server_windows)
+        if self.focus_index == new_focus_index:
+            return False
+        else:
+            self.focus_index = new_focus_index
+            return True
 
     def action(self, handler, *args, **kwargs):
 
