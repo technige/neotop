@@ -204,6 +204,7 @@ class AgentSmith(Application):
 
     def toggle_overview(self, _):
         if self.overview is None:
+            # Turn overview on
             if self.overview_control is None:
                 try:
                     self.overview_control = OverviewControl(self.address, self.auth, self.style_list)
@@ -211,8 +212,15 @@ class AgentSmith(Application):
                     pass
             if self.overview_control:
                 self.overview = Window(content=self.overview_control, width=20, dont_extend_width=True, style="bg:#222222")
+                self.overview_control.focused_address = self.server_windows[self.focus_index].content.address
         else:
+            # Turn overview off
             self.overview = None
+            self.focus_index = 0
+            for i, window in enumerate(self.server_windows):
+                if window.content.address == self.overview_control.focused_address:
+                    self.focus_index = i
+                    break
         self.update_layout()
 
     def do_exit(self, _):

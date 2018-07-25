@@ -168,14 +168,23 @@ class OverviewControl(DataControl):
         except IndexError:
             return self.address
 
+    @focused_address.setter
+    def focused_address(self, value):
+        for role, addresses in self.servers.items():
+            for i, address in enumerate(addresses):
+                if address == value:
+                    self.focused_role = role
+                    self.focused_index = i
+                    break
+
     def home(self, event):
         if not self.servers[self.focused_role]:
             return False
-        selected_role = self.server_roles[0]
-        selected_index = 0
-        if selected_role != self.focused_role or selected_index != self.focused_index:
-            self.focused_role = selected_role
-            self.focused_index = selected_index
+        focused_role = self.server_roles[0]
+        focused_index = 0
+        if focused_role != self.focused_role or focused_index != self.focused_index:
+            self.focused_role = focused_role
+            self.focused_index = focused_index
             return True
         else:
             return False
