@@ -160,7 +160,7 @@ class ServerControl(DataControl):
                     self.data.system.cpu_meter(10))
                 # status_text += ", tx={}".format(self.data.transactions.begin_count)
                 # status_text += ", store={}".format(self.data.storage.total_store_size)
-                style = "fg:ansiblack bg:ansigray" if focus else "fg:ansiwhite bg:ansibrightblack"
+                style = "fg:ansiblack bg:ansigray" if focus else "fg:ansiwhite bg:#222222"
             else:
                 # no data yet
                 status_text = " {} connecting...".format(self.address)

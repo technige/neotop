@@ -60,9 +60,9 @@ class AgentSmith(Application):
         primary_server = ServerControl(self, self.address, self.auth)
         self.server_windows = [Window(content=primary_server)]
         self.header = Window(content=FormattedTextControl(text="Agent Smith {}".format(__version__)), always_hide_cursor=True,
-                             height=1, dont_extend_height=True, style="bg:#202020 fg:ansiwhite")
+                             height=1, dont_extend_height=True, style="bg:#333333 fg:ansiwhite")
         self.footer = Window(content=FormattedTextControl(text="[O] Overview  [Ctrl+C] Exit"), always_hide_cursor=True,
-                             height=1, dont_extend_height=True, style="bg:#202020 fg:ansiwhite")
+                             height=1, dont_extend_height=True, style="bg:#333333 fg:ansiwhite")
         super(AgentSmith, self).__init__(
             key_bindings=self.bindings,
             style=self.style,
@@ -99,6 +99,19 @@ class AgentSmith(Application):
                 ]),
             )
 
+    def on_selection_change(self):
+        windows = []
+        old_addresses = [window.content.address for window in self.server_windows]
+        for address in self.overview.content.selected_addresses:
+            try:
+                address_index = old_addresses.index(address)
+            except ValueError:
+                windows.append(Window(content=ServerControl(self, address, self.auth)))
+            else:
+                windows.append(self.server_windows[address_index])
+        self.server_windows[:] = windows
+        self.update_layout()
+
     def insert(self, event):
         address_style = self.style_list.assign_style(self.overview.content.selected_address)
         if address_style is not None:
@@ -106,8 +119,7 @@ class AgentSmith(Application):
             for window in self.server_windows:
                 if window.content.address == selected_address:
                     return
-            self.server_windows.append(Window(content=ServerControl(self, selected_address, self.auth)))
-            self.update_layout()
+            self.on_selection_change()
 
     def delete(self, event):
         if len(self.server_windows) > 1:
@@ -115,9 +127,8 @@ class AgentSmith(Application):
             for window in list(self.server_windows):
                 if window.content.address == selected_address:
                     window.content.exit()
-                    self.server_windows.remove(window)
                     self.style_list.unassign_style(self.overview.content.selected_address)
-            self.update_layout()
+                    self.on_selection_change()
 
     @property
     def bindings(self):
@@ -169,7 +180,7 @@ class AgentSmith(Application):
                 except (ServiceUnavailable, SessionExpired):
                     pass
             if self.overview_control:
-                self.overview = Window(content=self.overview_control, width=20, dont_extend_width=True, style="bg:#202020")
+                self.overview = Window(content=self.overview_control, width=20, dont_extend_width=True, style="bg:#222222")
         else:
             self.overview = None
         self.update_layout()

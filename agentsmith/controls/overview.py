@@ -146,6 +146,22 @@ class OverviewControl(DataControl):
         )
 
     @property
+    def selected_addresses(self):
+        a = []
+
+        def append_servers(role):
+            for address in self.servers[role]:
+                address_style = self.style_list.assigned_styles.get(address, "")
+                if address_style:
+                    a.append(address)
+
+        append_servers(u"LEADER")
+        append_servers(u"FOLLOWER")
+        append_servers(u"READ_REPLICA")
+
+        return a
+
+    @property
     def selected_address(self):
         try:
             return self.servers[self.selected_role][self.selected_index]
