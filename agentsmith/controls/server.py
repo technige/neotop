@@ -68,7 +68,7 @@ class ServerControl(DataControl):
         ]
         self.alignments = ["<"]
         self.status_style = self.application.style_list.get_style(self.address)
-        self.header_style = "fg:#339999"
+        self.header_style = "class:data-header"
         self.selected_qid = None
         self.error = None
 
@@ -105,25 +105,25 @@ class ServerControl(DataControl):
         def stat_tuple(stat):
             s = str(stat)
             if s == "0" or s == "~":
-                return "fg:ansibrightblack", s
+                return "class:data-secondary", s
             else:
-                return "", s
+                return "class:data-primary", s
 
         if self.data.queries:
             for q in sorted(self.data.queries, key=lambda q0: q0.elapsed_time, reverse=True):
                 q.text = q.text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
                 client = "{}/{}".format(q.protocol[0].upper(), q.client_address)
                 if q.status == "running":
-                    payload_style = "fg:ansigreen"
+                    payload_style = "class:data-status-running"
                 elif q.status == "planning":
-                    payload_style = "fg:ansicyan"
+                    payload_style = "class:data-status-planning"
                 else:
                     payload_style = ""
                 self.append([
-                    ("", q.id),
-                    ("fg:ansibrightblack" if q.user == "neo4j" else "", q.user),
-                    ("", client),
-                    ("", q.allocated_bytes),
+                    ("class:data-primary", q.id),
+                    ("class:data-secondary" if q.user == "neo4j" else "class:data-primary", q.user),
+                    ("class:data-primary", client),
+                    ("class:data-primary", q.allocated_bytes),
                     stat_tuple(q.active_lock_count),
                     stat_tuple(q.page_hits),
                     stat_tuple(q.page_faults),
@@ -160,11 +160,11 @@ class ServerControl(DataControl):
                     self.data.system.cpu_meter(10))
                 # status_text += ", tx={}".format(self.data.transactions.begin_count)
                 # status_text += ", store={}".format(self.data.storage.total_store_size)
-                style = "fg:ansiblack bg:ansigray" if self.has_focus() else "fg:ansiwhite bg:#222222"
+                style = "class:server-header-focus" if self.has_focus() else "class:server-header"
             else:
                 # no data yet
                 status_text = " {} connecting...".format(self.address)
-                style = "fg:ansiblack bg:ansigray" if self.has_focus() else "fg:ansiblack bg:ansiyellow"
+                style = "class:server-header-focus" if self.has_focus() else "fg:ansiblack bg:ansiyellow"
             return [
                 (self.status_style, "  "),
                 (style, status_text.ljust(width - 2)),

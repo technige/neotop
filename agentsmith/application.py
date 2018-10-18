@@ -41,12 +41,49 @@ NEO4J_ADDRESS = getenv("NEO4J_ADDRESS", "localhost:7687")
 NEO4J_AUTH = tuple(getenv("NEO4J_AUTH", "neo4j:password").partition(":")[::2])
 
 
+BASE03 = "#002b36"  # background
+BASE02 = "#073642"  # background highlights
+BASE01 = "#586e75"  # comments / secondary content
+BASE00 = "#657b83"
+BASE0 = "#839496"   # body text / default code / primary content
+BASE1 = "#93a1a1"   # optional emphasized content
+BASE2 = "#eee8d5"
+BASE3 = "#fdf6e3"
+YELLOW = "#b58900"
+ORANGE = "#cb4b16"
+RED = "#dc322f"
+MAGENTA = "#d33682"
+VIOLET = "#6c71c4"
+BLUE = "#268bd2"
+CYAN = "#2aa198"
+GREEN = "#859900"
+
+
 class AgentSmith(Application):
 
     overview_control = None
     overview = None
 
     style = Style.from_dict({
+        "page-header": "fg:{} bg:{}".format(BASE1, BASE02),
+        "page-footer": "fg:{} bg:{}".format(BASE1, BASE02),
+        "overview": "fg:{} bg:{}".format(BASE0, BASE02),
+        "server": "fg:{} bg:{}".format(BASE0, BASE03),
+        "server-header-focus": "fg:{} bg:{}".format(BASE00, BASE3),
+        "server-header": "fg:{} bg:{}".format(BASE1, BASE02),
+        "data-header": BASE01,
+        "data-primary": BASE0,
+        "data-secondary": BASE01,
+        "data-status-running": GREEN,
+        "data-status-planning": CYAN,
+        "member-1": "bg:{}".format(GREEN),
+        "member-2": "bg:{}".format(CYAN),
+        "member-3": "bg:{}".format(BLUE),
+        "member-4": "bg:{}".format(VIOLET),
+        "member-5": "bg:{}".format(MAGENTA),
+        "member-6": "bg:{}".format(RED),
+        "member-7": "bg:{}".format(ORANGE),
+        "member-8": "bg:{}".format(YELLOW),
         # TODO
     })
 
@@ -58,11 +95,11 @@ class AgentSmith(Application):
         self.style_list = StyleList()
         self.style_list.assign_style(self.address)
         primary_server = ServerControl(self, self.address, self.auth)
-        self.server_windows = [Window(content=primary_server)]
+        self.server_windows = [Window(content=primary_server, style="class:server")]
         self.header = Window(content=FormattedTextControl(text="AGENT SMITH v{}".format(__version__)), always_hide_cursor=True,
-                             height=1, dont_extend_height=True, style="bg:#ansiblack fg:ansibrightgreen")
+                             height=1, dont_extend_height=True, style="class:page-header")
         self.footer = Window(content=FormattedTextControl(text="[O] Overview  [Ctrl+C] Exit"), always_hide_cursor=True,
-                             height=1, dont_extend_height=True, style="bg:#ansiblack fg:ansibrightgreen")
+                             height=1, dont_extend_height=True, style="class:page-footer")
         self.focus_index = 0
         super(AgentSmith, self).__init__(
             key_bindings=self.bindings,
@@ -89,7 +126,7 @@ class AgentSmith(Application):
                         HSplit([
                             self.overview,
                             Window(FormattedTextControl(text="[Ins ][Home][PgUp]\n[Del ][End ][PgDn]"),
-                                   style="bg:#222222 fg:ansigray", height=2, align=WindowAlign.CENTER,
+                                   style="class:overview", height=2, align=WindowAlign.CENTER,
                                    dont_extend_height=True),
                         ]),
                     ]),
@@ -114,7 +151,7 @@ class AgentSmith(Application):
             try:
                 address_index = old_addresses.index(address)
             except ValueError:
-                windows.append(Window(content=ServerControl(self, address, self.auth)))
+                windows.append(Window(content=ServerControl(self, address, self.auth), style="class:server"))
             else:
                 windows.append(self.server_windows[address_index])
         self.server_windows[:] = windows
@@ -219,7 +256,8 @@ class AgentSmith(Application):
                 except (ServiceUnavailable, SessionExpired):
                     pass
             if self.overview_control:
-                self.overview = Window(content=self.overview_control, width=20, dont_extend_width=True, style="bg:#222222")
+                self.overview = Window(content=self.overview_control, width=20, dont_extend_width=True,
+                                       style="class:overview")
                 self.overview_control.focused_address = self.server_windows[self.focus_index].content.address
         else:
             # Turn overview off

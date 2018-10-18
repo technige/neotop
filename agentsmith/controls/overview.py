@@ -27,10 +27,14 @@ class StyleList(object):
     def __init__(self):
         self.assigned_styles = {}
         self.unassigned_styles = {
-            "fg:ansiwhite bg:ansiblue",
-            "fg:ansiwhite bg:ansicyan",
-            "fg:ansiwhite bg:ansimagenta",
-            "fg:ansiwhite bg:ansiyellow",
+            "class:member-1",
+            "class:member-2",
+            "class:member-3",
+            "class:member-4",
+            "class:member-5",
+            "class:member-6",
+            "class:member-7",
+            "class:member-8",
         }
 
     def get_style(self, key):
