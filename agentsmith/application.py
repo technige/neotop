@@ -49,6 +49,7 @@ BASE0 = "#839496"   # body text / default code / primary content
 BASE1 = "#93a1a1"   # optional emphasized content
 BASE2 = "#eee8d5"
 BASE3 = "#fdf6e3"
+
 YELLOW = "#b58900"
 ORANGE = "#cb4b16"
 RED = "#dc322f"
@@ -76,14 +77,14 @@ class AgentSmith(Application):
         "data-secondary": BASE01,
         "data-status-running": GREEN,
         "data-status-planning": CYAN,
-        "member-1": "bg:{}".format(GREEN),
-        "member-2": "bg:{}".format(CYAN),
-        "member-3": "bg:{}".format(BLUE),
-        "member-4": "bg:{}".format(VIOLET),
-        "member-5": "bg:{}".format(MAGENTA),
-        "member-6": "bg:{}".format(RED),
-        "member-7": "bg:{}".format(ORANGE),
-        "member-8": "bg:{}".format(YELLOW),
+        "member-1": "bg:{}".format("ansigreen"),
+        "member-2": "bg:{}".format("ansicyan"),
+        "member-3": "bg:{}".format("ansiblue"),
+        "member-4": "bg:{}".format("ansibrightmagenta"),
+        "member-5": "bg:{}".format("ansimagenta"),
+        "member-6": "bg:{}".format("ansired"),
+        "member-7": "bg:{}".format("ansibrightred"),
+        "member-8": "bg:{}".format("ansiyellow"),
         # TODO
     })
 

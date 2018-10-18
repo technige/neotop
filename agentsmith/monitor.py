@@ -272,7 +272,9 @@ class TransactionListData(object):
         :param transactions:
         :param metadata:
         """
-        if transactions is not None:
+        if transactions is None:
+            self.__items = []
+        else:
             self.__items = list(map(TransactionData, transactions))
         self.last_committed_id = metadata[u"LastCommittedTxId"]
         self.begin_count = Amount(metadata[u"NumberOfOpenedTransactions"])
@@ -301,7 +303,48 @@ class TransactionListData(object):
 class TransactionData(object):
 
     def __init__(self, transaction):
+        """
+        {'transactionId': 'transaction-96',
+         'username': 'neo4j',
+         'metaData': {},
+         'startTime': '2018-10-18T11:04:17.938Z',
+         'protocol': 'bolt',
+         'clientAddress': '127.0.0.1:41758',
+         'requestUri': '127.0.0.1:17100',
+         'currentQueryId': 'query-127',
+         'currentQuery': 'CALL dbms.listTransactions',
+         'activeLockCount': 0,
+         'status': 'Running',
+         'resourceInformation': {},
+         'elapsedTimeMillis': 2,
+         'cpuTimeMillis': 0,
+         'waitTimeMillis': 0,
+         'idleTimeMillis': 2,
+         'allocatedBytes': 0,
+         'allocatedDirectBytes': 0,
+         'pageHits': 0,
+         'pageFaults': 0}
+        """
         self.id = int(transaction[u"transactionId"].partition("-")[-1])
+        self.user = transaction[u"username"]
+        self.metadata = transaction[u"metaData"]
+        self.start_time = transaction[u"startTime"]  # TODO: unit
+        self.protocol = transaction[u"protocol"]
+        self.client_address = transaction[u"clientAddress"]
+        self.request_uri = transaction[u"requestUri"]
+        # self.current_query_id = int(transaction[u"currentQueryId"].partition("-")[-1])
+        self.current_query = transaction[u"currentQuery"]
+        self.active_lock_count = Amount(transaction[u"activeLockCount"])
+        self.status = transaction[u"status"]
+        self.resource_information = transaction[u"resourceInformation"]
+        self.elapsed_time = Time(ms=transaction[u"elapsedTimeMillis"])
+        self.cpu_time = Time(ms=transaction[u"cpuTimeMillis"])
+        self.wait_time = Time(ms=transaction[u"waitTimeMillis"])
+        self.idle_time = Time(ms=transaction[u"idleTimeMillis"])
+        self.allocated_bytes = BytesAmount(transaction[u"allocatedBytes"])
+        self.allocated_direct_bytes = BytesAmount(transaction[u"allocatedDirectBytes"])
+        self.page_hits = Amount(transaction[u"pageHits"])
+        self.page_faults = Amount(transaction[u"pageFaults"])
 
     def __repr__(self):
         s = ["Transaction:"]
@@ -406,6 +449,8 @@ class ServerMonitor(object):
     _uri = None
     _auth = None
     _driver = None
+    _session = None
+    _tx = None
     _running = None
     _refresh_period = None
     _refresh_thread = None
@@ -437,6 +482,8 @@ class ServerMonitor(object):
                 inst._uri = uri
                 inst._auth = auth
                 inst._driver = None
+                inst._session = None
+                inst._tx = None
                 inst._running = False
                 inst._refresh_period = 1.0
                 inst._refresh_thread = Thread(target=inst.loop)
@@ -483,8 +530,9 @@ class ServerMonitor(object):
         try:
             if not self._driver:
                 self._driver = GraphDatabase.driver(self._uri, auth=self._auth, max_retry_time=1.0)
-            with self._driver.session(READ_ACCESS) as session:
-                return session.write_transaction(unit)
+                self._session = self._driver.session()
+                self._tx = self._session.begin_transaction()
+            return unit(self._tx)
         except (CypherError, ServiceUnavailable, SessionExpired) as error:
             self._driver = None
             self._data = None
@@ -528,16 +576,16 @@ class ServerMonitor(object):
                 tx.run("CALL dbms.listQueries").data())
 
             # # TODO: detect dbms.listTransactions (only available in 3.4+)
-            # try:
-            #     transactions = tx.run("CALL dbms.listTransactions").data()
-            # except CypherError as error:
-            #     if error.code.endswith("ProcedureNotFound"):
-            #         transactions = None
-            #     else:
-            #         raise
-            # data.transactions = TransactionListData(
-            #     transactions,
-            #     self._extract_jmx(jmx, u"org.neo4j:instance=kernel#0,name=Transactions"))
+            try:
+                transactions = tx.run("CALL dbms.listTransactions").data()
+            except CypherError as error:
+                if error.code.endswith("ProcedureNotFound"):
+                    transactions = None
+                else:
+                    raise
+            data.transactions = TransactionListData(
+                transactions,
+                self._extract_jmx(jmx, u"org.neo4j:instance=kernel#0,name=Transactions"))
 
             data.page_cache = PageCacheData(
                 self._extract_jmx(jmx, u"org.neo4j:instance=kernel#0,name=Page cache"))

@@ -24,7 +24,7 @@ from agentsmith.controls.data import DataControl
 
 
 DEFAULT_FIELDS = [
-    ("", "QID"),
+    ("", "TXID"),
     ("", "USER"),
     ("", "CLIENT"),
     ("", "  MEM"),
@@ -109,10 +109,13 @@ class ServerControl(DataControl):
             else:
                 return "class:data-primary", s
 
-        if self.data.queries:
-            for q in sorted(self.data.queries, key=lambda q0: q0.elapsed_time, reverse=True):
-                q.text = q.text.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
-                client = "{}/{}".format(q.protocol[0].upper(), q.client_address)
+        if self.data.transactions:
+            for q in sorted(self.data.transactions, key=lambda q0: q0.elapsed_time, reverse=True):
+                q.current_query = q.current_query.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
+                if q.protocol or q.client_address:
+                    client = "{}/{}".format(q.protocol[0].upper(), q.client_address)
+                else:
+                    client = ""
                 if q.status == "running":
                     payload_style = "class:data-status-running"
                 elif q.status == "planning":
@@ -131,7 +134,7 @@ class ServerControl(DataControl):
                     stat_tuple(q.cpu_time),
                     stat_tuple(q.wait_time),
                     stat_tuple(q.idle_time),
-                    (payload_style, q.text),
+                    (payload_style, q.current_query),
                 ])
         self.error = None
         self.invalidate.fire()

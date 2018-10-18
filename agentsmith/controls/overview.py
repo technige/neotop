@@ -112,7 +112,7 @@ class OverviewControl(DataControl):
                         ("", " "),
                         (address_style, "  "),
                         ("", " "),
-                        ("fg:ansiblack bg:ansigray", address.ljust(width - self.padding)),
+                        ("class:server-header-focus", address.ljust(width - self.padding)),
                         ("", " "),
                     ])
                 else:
@@ -120,23 +120,23 @@ class OverviewControl(DataControl):
                         ("", " "),
                         (address_style, "  "),
                         ("", " "),
-                        ("", address.ljust(width - self.padding)),
+                        ("class:server-header", address.ljust(width - self.padding)),
                         ("", " "),
                     ])
 
         if self.servers[u"LEADER"]:
             if self.for_cluster_core:
-                lines.append([("fg:#A0A0A0", " Leader".ljust(width))])
+                lines.append([("class:data-header", " Leader".ljust(width))])
             else:
-                lines.append([("fg:#A0A0A0", " Server".ljust(width))])
+                lines.append([("class:data-header", " Server".ljust(width))])
             append_servers(u"LEADER")
             lines.append([])
         if self.servers[u"FOLLOWER"]:
-            lines.append([("fg:#A0A0A0", " Followers".ljust(width))])
+            lines.append([("class:data-header", " Followers".ljust(width))])
             append_servers(u"FOLLOWER")
             lines.append([])
         if self.servers[u"READ_REPLICA"]:
-            lines.append([("fg:#A0A0A0", " Read replicas".ljust(width))])
+            lines.append([("class:data-header", " Read replicas".ljust(width))])
             append_servers(u"READ_REPLICA")
             lines.append([])
 
