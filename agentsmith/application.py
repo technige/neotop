@@ -59,10 +59,10 @@ class AgentSmith(Application):
         self.style_list.assign_style(self.address)
         primary_server = ServerControl(self, self.address, self.auth)
         self.server_windows = [Window(content=primary_server)]
-        self.header = Window(content=FormattedTextControl(text="Agent Smith {}".format(__version__)), always_hide_cursor=True,
-                             height=1, dont_extend_height=True, style="bg:#333333 fg:ansiwhite")
+        self.header = Window(content=FormattedTextControl(text="AGENT SMITH v{}".format(__version__)), always_hide_cursor=True,
+                             height=1, dont_extend_height=True, style="bg:#ansiblack fg:ansibrightgreen")
         self.footer = Window(content=FormattedTextControl(text="[O] Overview  [Ctrl+C] Exit"), always_hide_cursor=True,
-                             height=1, dont_extend_height=True, style="bg:#333333 fg:ansiwhite")
+                             height=1, dont_extend_height=True, style="bg:#ansiblack fg:ansibrightgreen")
         self.focus_index = 0
         super(AgentSmith, self).__init__(
             key_bindings=self.bindings,
@@ -154,6 +154,7 @@ class AgentSmith(Application):
         bindings.add('end')(self.action(self.end))
         bindings.add('pageup')(self.action(self.page_up))
         bindings.add('pagedown')(self.action(self.page_down))
+        bindings.add('down')(self.action(self.down))
 
         return bindings
 
@@ -194,6 +195,13 @@ class AgentSmith(Application):
         else:
             self.focus_index = new_focus_index
             return True
+
+    @property
+    def focused_window(self):
+        return self.server_windows[self.focus_index]
+
+    def down(self, event):
+        self.focused_window.content.down(event)
 
     def action(self, handler, *args, **kwargs):
 

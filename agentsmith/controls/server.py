@@ -69,6 +69,7 @@ class ServerControl(DataControl):
         self.alignments = ["<"]
         self.status_style = self.application.style_list.get_style(self.address)
         self.header_style = "fg:#339999"
+        self.selected_qid = None
         self.error = None
 
     def set_fields(self, fields):
@@ -138,8 +139,10 @@ class ServerControl(DataControl):
     def on_error(self, error):
         self.error = error
 
+    def has_focus(self):
+        return self.application.focused_address == self.address
+
     def create_content(self, width, height):
-        focus = (self.application.focused_address == self.address)
 
         widths = self.widths()
         used_width = sum(widths)
@@ -157,11 +160,11 @@ class ServerControl(DataControl):
                     self.data.system.cpu_meter(10))
                 # status_text += ", tx={}".format(self.data.transactions.begin_count)
                 # status_text += ", store={}".format(self.data.storage.total_store_size)
-                style = "fg:ansiblack bg:ansigray" if focus else "fg:ansiwhite bg:#222222"
+                style = "fg:ansiblack bg:ansigray" if self.has_focus() else "fg:ansiwhite bg:#222222"
             else:
                 # no data yet
                 status_text = " {} connecting...".format(self.address)
-                style = "fg:ansiblack bg:ansigray" if focus else "fg:ansiblack bg:ansiyellow"
+                style = "fg:ansiblack bg:ansigray" if self.has_focus() else "fg:ansiblack bg:ansiyellow"
             return [
                 (self.status_style, "  "),
                 (style, status_text.ljust(width - 2)),
@@ -206,6 +209,8 @@ class ServerControl(DataControl):
                     pass
                 else:
                     for x, (style, cell) in enumerate(li):
+                        if x == 0 and self.has_focus() and str(self.selected_qid) == cell:
+                            style = "bg:ansibrightgreen fg:ansiblack"
                         if x > 0:
                             line.append((style, " "))
                         alignment = self.alignments[x]
@@ -229,3 +234,7 @@ class ServerControl(DataControl):
             line_count=len(self.lines),
             show_cursor=False,
         )
+
+    def down(self, event):
+        self.selected_qid = self.data.queries[0].id
+        self.invalidate.fire()
