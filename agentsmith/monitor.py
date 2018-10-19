@@ -448,7 +448,6 @@ class ServerMonitor(object):
     _routing = None
     _uri = None
     _auth = None
-    _driver = None
     _running = None
     _refresh_period = None
     _refresh_thread = None
@@ -506,11 +505,11 @@ class ServerMonitor(object):
                 del self.__instances[self.uri]
 
     def loop(self):
-        with GraphDatabase.driver(self._uri, auth=self._auth, max_retry_time=1.0) as self._driver:
+        with GraphDatabase.driver(self._uri, auth=self._auth, max_retry_time=1.0) as driver:
             while self._running:
                 try:
                     if self._handlers:
-                        with self._driver.session() as session:
+                        with driver.session() as session:
                             with session.begin_transaction() as tx:
                                 while self._handlers:
                                     self.work(tx, self.fetch_data)
