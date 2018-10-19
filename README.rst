@@ -2,7 +2,9 @@
 Agent Smith
 ===========
 
-Neo4j monitor
+Agent Smith is a transaction monitor for Neo4j 3.4 and above.
+Enterprise edition is required.
+
 
 Installation
 ============
