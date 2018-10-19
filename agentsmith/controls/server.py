@@ -61,6 +61,7 @@ class ServerControl(DataControl):
     def __init__(self, application, address, auth):
         super(ServerControl, self).__init__(address, auth)
         self.application = application
+        self.transactions = []
         self.title = []
         self.lines = [
             self.title,
@@ -69,7 +70,7 @@ class ServerControl(DataControl):
         self.alignments = ["<"]
         self.status_style = self.application.style_list.get_style(self.address)
         self.header_style = "class:data-header"
-        self.selected_qid = None
+        self.selected_txid = None
         self.error = None
 
     def set_fields(self, fields):
@@ -109,33 +110,33 @@ class ServerControl(DataControl):
             else:
                 return "class:data-primary", s
 
-        if self.data.transactions:
-            for q in sorted(self.data.transactions, key=lambda q0: q0.elapsed_time, reverse=True):
-                q.current_query = q.current_query.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
-                if q.protocol or q.client_address:
-                    client = "{}({})".format(q.client_address, q.protocol[0].upper())
-                else:
-                    client = ""
-                if q.status == "running":
-                    payload_style = "class:data-status-running"
-                elif q.status == "planning":
-                    payload_style = "class:data-status-planning"
-                else:
-                    payload_style = ""
-                self.append([
-                    ("class:data-primary", q.id),
-                    ("class:data-secondary" if q.user == "neo4j" else "class:data-primary", q.user),
-                    ("class:data-primary", client),
-                    ("class:data-primary", q.allocated_bytes),
-                    stat_tuple(q.active_lock_count),
-                    stat_tuple(q.page_hits),
-                    stat_tuple(q.page_faults),
-                    stat_tuple(q.elapsed_time),
-                    stat_tuple(q.cpu_time),
-                    stat_tuple(q.wait_time),
-                    stat_tuple(q.idle_time),
-                    (payload_style, q.current_query),
-                ])
+        self.transactions[:] = sorted(self.data.transactions, key=lambda q0: q0.elapsed_time, reverse=True)
+        for tx in self.transactions:
+            tx.current_query = tx.current_query.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
+            if tx.protocol or tx.client_address:
+                client = "{}/{}".format(tx.client_address, tx.protocol[0].upper())
+            else:
+                client = ""
+            if tx.status == "running":
+                payload_style = "class:data-status-running"
+            elif tx.status == "planning":
+                payload_style = "class:data-status-planning"
+            else:
+                payload_style = ""
+            self.append([
+                ("class:data-primary", tx.id),
+                ("class:data-secondary" if tx.user == "neo4j" else "class:data-primary", tx.user),
+                ("class:data-primary", client),
+                ("class:data-primary", tx.allocated_bytes),
+                stat_tuple(tx.active_lock_count),
+                stat_tuple(tx.page_hits),
+                stat_tuple(tx.page_faults),
+                stat_tuple(tx.elapsed_time),
+                stat_tuple(tx.cpu_time),
+                stat_tuple(tx.wait_time),
+                stat_tuple(tx.idle_time),
+                (payload_style, tx.current_query),
+            ])
         self.error = None
         self.invalidate.fire()
 
@@ -155,7 +156,7 @@ class ServerControl(DataControl):
             if self.error:
                 status_text = " {} down -- {}".format(self.address, self.error)
                 # style = "fg:ansiwhite bg:ansired"
-                style = "class:server-header-focus fg:ansired" if self.has_focus() else "class:server-header fg:ansired"
+                style = "class:server-header-focus fg:ansibrightred" if self.has_focus() else "class:server-header fg:ansibrightred"
             elif self.data:
                 status_text = " {} {}, {}, {}".format(
                     self.address,
@@ -178,7 +179,7 @@ class ServerControl(DataControl):
             line = []
             if self.data is None:
                 pass
-            elif self.data.transactions is None:
+            elif self.transactions is None:
                 dbms = self.data.system.dbms
                 message = "Transaction list not available in Neo4j {}.{} {}".format(
                     dbms.version.major, dbms.version.minor, dbms.edition)
@@ -204,7 +205,7 @@ class ServerControl(DataControl):
             line = []
             if self.data is None:
                 pass
-            elif self.data.queries is None:
+            elif self.data.transactions is None:
                 pass
             else:
                 try:
@@ -212,9 +213,10 @@ class ServerControl(DataControl):
                 except IndexError:
                     pass
                 else:
+                    selected = str(self.selected_txid) == li[0][1]
                     for x, (style, cell) in enumerate(li):
-                        if x == 0 and self.has_focus() and str(self.selected_qid) == cell:
-                            style = "bg:ansibrightgreen fg:ansiblack"
+                        if self.has_focus() and selected:
+                            style = "class:data-highlight"
                         if x > 0:
                             line.append((style, " "))
                         alignment = self.alignments[x]
@@ -239,6 +241,30 @@ class ServerControl(DataControl):
             show_cursor=False,
         )
 
+    def up(self, event):
+        new_selected_txid = None
+        for tx in self.transactions:
+            if tx.id == self.selected_txid:
+                break
+            else:
+                new_selected_txid = tx.id
+        if new_selected_txid != self.selected_txid:
+            self.selected_txid = new_selected_txid
+            self.invalidate.fire()
+
     def down(self, event):
-        self.selected_qid = self.data.queries[0].id
-        self.invalidate.fire()
+        new_selected_txid = None
+        for tx in reversed(self.transactions):
+            if tx.id == self.selected_txid:
+                break
+            else:
+                new_selected_txid = tx.id
+        # print("%s -> %s" % (self.selected_txid, new_selected_txid), end="")
+        if new_selected_txid != self.selected_txid:
+            self.selected_txid = new_selected_txid
+            self.invalidate.fire()
+
+    def kill(self, event):
+        for tx in self.transactions:
+            if tx.id == self.selected_txid:
+                self.monitor.kill(tx)

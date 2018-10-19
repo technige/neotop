@@ -18,6 +18,7 @@
 
 from __future__ import division
 
+from collections import deque
 from datetime import datetime
 from threading import Thread, Lock
 
@@ -332,7 +333,11 @@ class TransactionData(object):
         self.protocol = transaction[u"protocol"]
         self.client_address = transaction[u"clientAddress"]
         self.request_uri = transaction[u"requestUri"]
-        # self.current_query_id = int(transaction[u"currentQueryId"].partition("-")[-1])
+        self.current_query_id_string = transaction[u"currentQueryId"]
+        if self.current_query_id_string:
+            self.current_query_id = int(self.current_query_id_string.partition("-")[-1])
+        else:
+            self.current_query_id = None
         self.current_query = transaction[u"currentQuery"]
         self.active_lock_count = Amount(transaction[u"activeLockCount"])
         self.status = transaction[u"status"]
@@ -479,6 +484,7 @@ class ServerMonitor(object):
                 inst._uri = uri
                 inst._auth = auth
                 inst._driver = None
+                inst._death_row = deque()
                 inst._running = True
                 inst._refresh_period = 1.0
                 inst._refresh_thread = Thread(target=inst.loop)
@@ -497,6 +503,9 @@ class ServerMonitor(object):
         with self._lock:
             self._handlers.discard(handler)
 
+    def kill(self, tx):
+        self._death_row.append(tx)
+
     def exit(self):
         with self._lock:
             if self._running:
@@ -506,12 +515,24 @@ class ServerMonitor(object):
 
     def loop(self):
         with GraphDatabase.driver(self._uri, auth=self._auth, max_retry_time=1.0) as driver:
+
+            def kill():
+                with driver.session() as s:
+                    with s.begin_transaction() as t:
+                        while self._death_row:
+                            tx_to_kill = self._death_row.pop()
+                            qid_to_kill = tx_to_kill.current_query_id_string
+                            if qid_to_kill:
+                                t.run("CALL dbms.killQuery($qid)", qid=qid_to_kill).consume()
+
             while self._running:
                 try:
                     if self._handlers:
                         with driver.session() as session:
                             with session.begin_transaction() as tx:
                                 while self._handlers:
+                                    if self._death_row:
+                                        kill()
                                     self.work(tx, self.fetch_data)
                                     for handler in self._handlers:
                                         if callable(handler):

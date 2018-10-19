@@ -77,6 +77,7 @@ class AgentSmith(Application):
         "data-secondary": BASE01,
         "data-status-running": GREEN,
         "data-status-planning": CYAN,
+        "data-highlight": "fg:{} bg:{}".format(BASE00, BASE02),
         "member-1": "bg:{}".format("ansigreen"),
         "member-2": "bg:{}".format("ansicyan"),
         "member-3": "bg:{}".format("ansiblue"),
@@ -98,9 +99,14 @@ class AgentSmith(Application):
         primary_server = ServerControl(self, self.address, self.auth)
         primary_server.attach()
         self.server_windows = [Window(content=primary_server, style="class:server")]
-        self.header = Window(content=FormattedTextControl(text="AGENT SMITH v{}".format(__version__)), always_hide_cursor=True,
+        self.header = Window(content=FormattedTextControl(text="AGENT SMITH v{}".format(__version__)),
+                             always_hide_cursor=True,
                              height=1, dont_extend_height=True, style="class:page-header")
-        self.footer = Window(content=FormattedTextControl(text="[O] Overview  [Ctrl+C] Exit"), always_hide_cursor=True,
+        self.footer = Window(content=FormattedTextControl(text="[Ctrl+O] Overview  "
+                                                               "[PgUp]/[PgDn] Server  "
+                                                               "[Up]/[Down] Transaction  "
+                                                               "[Ctrl+K] Kill  "
+                                                               "[Ctrl+C] Exit"), always_hide_cursor=True,
                              height=1, dont_extend_height=True, style="class:page-footer")
         self.focus_index = 0
         super(AgentSmith, self).__init__(
@@ -184,8 +190,7 @@ class AgentSmith(Application):
         bindings = KeyBindings()
         bindings.add('c-c')(self.do_exit)
 
-        bindings.add('o')(self.toggle_overview)
-        bindings.add('f12')(self.toggle_overview)
+        bindings.add('c-o')(self.toggle_overview)
 
         bindings.add('insert')(self.action(self.insert))
         bindings.add('+')(self.action(self.insert))
@@ -195,7 +200,10 @@ class AgentSmith(Application):
         bindings.add('end')(self.action(self.end))
         bindings.add('pageup')(self.action(self.page_up))
         bindings.add('pagedown')(self.action(self.page_down))
+        bindings.add('up')(self.action(self.up))
         bindings.add('down')(self.action(self.down))
+
+        bindings.add('c-k')(self.action(self.kill))
 
         return bindings
 
@@ -239,10 +247,24 @@ class AgentSmith(Application):
 
     @property
     def focused_window(self):
-        return self.server_windows[self.focus_index]
+        for server_window in self.server_windows:
+            if server_window.content.has_focus():
+                return server_window
+
+    def up(self, event):
+        window = self.focused_window
+        if window:
+            window.content.up(event)
 
     def down(self, event):
-        self.focused_window.content.down(event)
+        window = self.focused_window
+        if window:
+            window.content.down(event)
+
+    def kill(self, event):
+        window = self.focused_window
+        if window:
+            window.content.kill(event)
 
     def action(self, handler, *args, **kwargs):
 
