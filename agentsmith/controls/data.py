@@ -27,9 +27,14 @@ class DataControl(UIControl):
     def __init__(self, address, auth, prefer_routing=False, key_bindings=None):
         self.address = address
         self.monitor = ServerMonitor(address, auth, prefer_routing=prefer_routing, on_error=self.on_error)
-        self.monitor.attach(self.on_refresh)
         self.key_bindings = key_bindings
         self.invalidate = Event(self)
+
+    def attach(self):
+        self.monitor.attach(self.on_refresh)
+
+    def detach(self):
+        self.monitor.detach(self.on_refresh)
 
     @property
     def for_cluster_core(self):
@@ -37,6 +42,7 @@ class DataControl(UIControl):
 
     def exit(self):
         self.monitor.detach(self.on_refresh)
+        self.monitor.exit()
 
     def on_refresh(self, data):
         pass

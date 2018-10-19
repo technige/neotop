@@ -449,8 +449,6 @@ class ServerMonitor(object):
     _uri = None
     _auth = None
     _driver = None
-    _session = None
-    _tx = None
     _running = None
     _refresh_period = None
     _refresh_thread = None
@@ -482,59 +480,64 @@ class ServerMonitor(object):
                 inst._uri = uri
                 inst._auth = auth
                 inst._driver = None
-                inst._session = None
-                inst._tx = None
-                inst._running = False
+                inst._running = True
                 inst._refresh_period = 1.0
                 inst._refresh_thread = Thread(target=inst.loop)
-                inst._on_refresh = set()
+                inst._refresh_thread.start()
+                inst._handlers = set()
                 inst._on_error = on_error
                 inst._lock = Lock()
                 inst._data = None
             return cls.__instances[uri]
 
-    def attach(self, event):
+    def attach(self, handler):
         with self._lock:
-            self._on_refresh.add(event)
-            if not self._running:
-                self._running = True
-                self._refresh_thread.start()
+            self._handlers.add(handler)
 
-    def detach(self, event):
+    def detach(self, handler):
         with self._lock:
-            self._on_refresh.remove(event)
-            if not self._on_refresh:
+            self._handlers.discard(handler)
+
+    def exit(self):
+        with self._lock:
+            if self._running:
                 self._running = False
                 self._refresh_thread.join()
-                if self._driver:
-                    self._driver.close()
                 del self.__instances[self.uri]
 
     def loop(self):
-        while self._running:
-            try:
-                if self._on_refresh:
-                    self.work(self.fetch_data)
-                    for handler in self._on_refresh:
-                        if callable(handler):
-                            handler(self._data)
-                for _ in range(int(10 * self._refresh_period)):
-                    if self._running:
-                        sleep(0.1)
+        with GraphDatabase.driver(self._uri, auth=self._auth, max_retry_time=1.0) as self._driver:
+            while self._running:
+                try:
+                    if self._handlers:
+                        with self._driver.session() as session:
+                            with session.begin_transaction() as tx:
+                                while self._handlers:
+                                    self.work(tx, self.fetch_data)
+                                    for handler in self._handlers:
+                                        if callable(handler):
+                                            handler(self._data)
+                                    for _ in range(int(10 * self._refresh_period)):
+                                        if self._handlers and self._running:
+                                            sleep(0.1)
+                                        else:
+                                            break
                     else:
-                        break
-            except InterruptedError:
-                self._running = False
+                        for _ in range(int(10 * self._refresh_period)):
+                            if self._running:
+                                sleep(0.1)
+                            else:
+                                break
+                except InterruptedError:
+                    self._running = False
 
-    def work(self, unit):
+    def work(self, tx, unit):
         try:
-            if not self._driver:
-                self._driver = GraphDatabase.driver(self._uri, auth=self._auth, max_retry_time=1.0)
-                self._session = self._driver.session()
-                self._tx = self._session.begin_transaction()
-            return unit(self._tx)
+            # if not self._driver:
+            #     self._driver = GraphDatabase.driver(self._uri, auth=self._auth, max_retry_time=1.0)
+            return unit(tx)
         except (CypherError, ServiceUnavailable, SessionExpired) as error:
-            self._driver = None
+            # self._driver = None
             self._data = None
             if callable(self._on_error):
                 self._on_error(error)

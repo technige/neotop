@@ -96,6 +96,7 @@ class AgentSmith(Application):
         self.style_list = StyleList()
         self.style_list.assign_style(self.address)
         primary_server = ServerControl(self, self.address, self.auth)
+        primary_server.attach()
         self.server_windows = [Window(content=primary_server, style="class:server")]
         self.header = Window(content=FormattedTextControl(text="AGENT SMITH v{}".format(__version__)), always_hide_cursor=True,
                              height=1, dont_extend_height=True, style="class:page-header")
@@ -152,7 +153,9 @@ class AgentSmith(Application):
             try:
                 address_index = old_addresses.index(address)
             except ValueError:
-                windows.append(Window(content=ServerControl(self, address, self.auth), style="class:server"))
+                control = ServerControl(self, address, self.auth)
+                control.attach()
+                windows.append(Window(content=control, style="class:server"))
             else:
                 windows.append(self.server_windows[address_index])
         self.server_windows[:] = windows
@@ -256,12 +259,14 @@ class AgentSmith(Application):
                     self.overview_control = OverviewControl(self.address, self.auth, self.style_list)
                 except (ServiceUnavailable, SessionExpired):
                     pass
+            self.overview_control.attach()
             if self.overview_control:
                 self.overview = Window(content=self.overview_control, width=20, dont_extend_width=True,
                                        style="class:overview")
                 self.overview_control.focused_address = self.server_windows[self.focus_index].content.address
         else:
             # Turn overview off
+            self.overview_control.detach()
             self.overview = None
             self.focus_index = 0
             for i, window in enumerate(self.server_windows):

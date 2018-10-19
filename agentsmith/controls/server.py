@@ -113,7 +113,7 @@ class ServerControl(DataControl):
             for q in sorted(self.data.transactions, key=lambda q0: q0.elapsed_time, reverse=True):
                 q.current_query = q.current_query.replace("\r\n", " ").replace("\r", " ").replace("\n", " ")
                 if q.protocol or q.client_address:
-                    client = "{}/{}".format(q.protocol[0].upper(), q.client_address)
+                    client = "{}({})".format(q.client_address, q.protocol[0].upper())
                 else:
                     client = ""
                 if q.status == "running":
@@ -153,8 +153,9 @@ class ServerControl(DataControl):
 
         def get_status_line():
             if self.error:
-                status_text = " {} unavailable -- {}".format(self.address, self.error)
-                style = "fg:ansiwhite bg:ansired"
+                status_text = " {} down -- {}".format(self.address, self.error)
+                # style = "fg:ansiwhite bg:ansired"
+                style = "class:server-header-focus fg:ansired" if self.has_focus() else "class:server-header fg:ansired"
             elif self.data:
                 status_text = " {} {}, {}, {}".format(
                     self.address,
@@ -167,7 +168,7 @@ class ServerControl(DataControl):
             else:
                 # no data yet
                 status_text = " {} connecting...".format(self.address)
-                style = "class:server-header-focus" if self.has_focus() else "fg:ansiblack bg:ansiyellow"
+                style = "class:server-header-focus" if self.has_focus() else "class:server-header fg:ansiyellow"
             return [
                 (self.status_style, "  "),
                 (style, status_text.ljust(width - 2)),
@@ -177,10 +178,10 @@ class ServerControl(DataControl):
             line = []
             if self.data is None:
                 pass
-            elif self.data.queries is None:
-                message = "Query list not available"
-                if self.data.system.dbms.edition == u"CE":
-                    message += " in Neo4j Community Edition"
+            elif self.data.transactions is None:
+                dbms = self.data.system.dbms
+                message = "Transaction list not available in Neo4j {}.{} {}".format(
+                    dbms.version.major, dbms.version.minor, dbms.edition)
                 line.append((self.header_style, message.ljust(width)))
             else:
                 try:
