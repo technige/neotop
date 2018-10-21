@@ -548,7 +548,7 @@ class ServerMonitor(object):
                                 sleep(0.1)
                             else:
                                 break
-                except InterruptedError:
+                except KeyboardInterrupt:
                     self._running = False
 
     def work(self, tx, unit):
