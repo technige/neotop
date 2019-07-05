@@ -21,8 +21,10 @@ from __future__ import division
 from collections import deque
 from datetime import datetime
 from threading import Thread, Lock
+from time import sleep
 
-from neo4j.v1 import GraphDatabase, CypherError, ServiceUnavailable, READ_ACCESS, sleep, SessionExpired, urlparse
+from neo4j.v1 import GraphDatabase, CypherError, ServiceUnavailable, READ_ACCESS, SessionExpired
+from neo4j.compat import urlparse
 
 from agentsmith.units import Load, BytesAmount, Time, Product, Amount
 

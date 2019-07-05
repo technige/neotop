@@ -16,7 +16,7 @@
 # limitations under the License.
 
 
-from neo4j.v1 import urlparse
+from neo4j.compat import urlparse
 from prompt_toolkit.layout import UIContent
 
 from agentsmith.controls.data import DataControl

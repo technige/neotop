@@ -44,9 +44,9 @@ package_metadata = {
     },
     "packages": packages,
     "install_requires": [
-        "click>=6.0",
-        "neo4j-driver>=1.6",
-        "prompt_toolkit>=2.0",
+        "click~=7.0",
+        "neo4j~=1.7.4",
+        "prompt_toolkit~=2.0",
     ],
     "license": __license__,
     "classifiers": [
